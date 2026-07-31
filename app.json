@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Guts",
-    "slug": "Guts",
+    "slug": "guts",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,6 +19,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "07d97753-0127-4136-b79a-0fa0477b0afd"
+      }
+    },
+    "owner": "nazelahi"
   }
 }
