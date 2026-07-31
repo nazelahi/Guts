@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar, Platform, AppState } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from './src/theme/colors';
@@ -17,12 +17,17 @@ import { PlayerDetailModal } from './src/components/PlayerDetailModal';
 import { GutsCalculatorModal } from './src/components/GutsCalculatorModal';
 import { TransferPointsModal } from './src/components/TransferPointsModal';
 import { SplashScreen } from './src/components/SplashScreen';
+import { PasscodeLockScreen } from './src/components/PasscodeLockScreen';
 
 function MainApp() {
-  const { isLoading, settings } = useGuts();
+  const { isLoading, settings, themeColors, players, showToast } = useGuts();
   const [showSplash, setShowSplash] = useState(true);
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('HOME'); // 'HOME', 'PLAYERS', 'HISTORY', 'SETTINGS'
+
+  // Passcode Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   // Modals state
   const [addPlayerVisible, setAddPlayerVisible] = useState(false);
@@ -48,8 +53,45 @@ function MainApp() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Sync auth state when settings load
+  useEffect(() => {
+    if (settings && !settings.usePasscode) {
+      setIsAuthenticated(true);
+    }
+  }, [settings?.usePasscode]);
+
+  // Monitor AppState change to lock the app when minimized/resumed
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        if (settings?.usePasscode) {
+          setIsAuthenticated(false);
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [settings?.usePasscode]);
+
   if (isLoading || showSplash) {
     return <SplashScreen subtitle={settings?.clubName || 'Snooker Club Points & Ledger'} />;
+  }
+
+  if (settings?.usePasscode && !isAuthenticated) {
+    return (
+      <PasscodeLockScreen
+        correctPasscode={settings.passcode}
+        onSuccess={() => setIsAuthenticated(true)}
+        title="ENTER PASSCODE TO UNLOCK"
+        description="Verify passcode to access Guts Ledger"
+      />
+    );
   }
 
   // Modal Triggers
@@ -89,8 +131,8 @@ function MainApp() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }]}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.surface} />
+    <View style={[styles.container, { backgroundColor: themeColors.background, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }]}>
+      <StatusBar barStyle="light-content" backgroundColor={themeColors.surface} />
       
       {/* Top Brand Header */}
       <Header 
@@ -126,15 +168,21 @@ function MainApp() {
 
       {/* Floating Action Button for Quick Match Entry */}
       <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => openAddMatchModal()}
+        style={[styles.fab, { backgroundColor: themeColors.accentGold }]}
+        onPress={() => {
+          if (players.length === 0) {
+            showToast('Please add an opponent player first.', 'error');
+          } else {
+            openAddMatchModal();
+          }
+        }}
         activeOpacity={0.85}
       >
         <MaterialCommunityIcons name="trophy-award" size={24} color="#000" />
       </TouchableOpacity>
 
       {/* Bottom Tab Bar */}
-      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <View style={[styles.tabBar, { backgroundColor: themeColors.surface, borderTopColor: themeColors.surfaceBorder, paddingBottom: Math.max(insets.bottom, 12) }]}>
         <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('HOME')}
@@ -143,9 +191,9 @@ function MainApp() {
           <Ionicons
             name={activeTab === 'HOME' ? 'home' : 'home-outline'}
             size={22}
-            color={activeTab === 'HOME' ? COLORS.accentGold : COLORS.textMuted}
+            color={activeTab === 'HOME' ? themeColors.accentGold : themeColors.textMuted}
           />
-          <Text style={[styles.tabLabel, activeTab === 'HOME' && styles.tabLabelActive]}>
+          <Text style={[styles.tabLabel, { color: themeColors.textMuted }, activeTab === 'HOME' && { color: themeColors.accentGold, fontWeight: '800' }]}>
             Dashboard
           </Text>
         </TouchableOpacity>
@@ -158,9 +206,9 @@ function MainApp() {
           <Ionicons
             name={activeTab === 'PLAYERS' ? 'people' : 'people-outline'}
             size={22}
-            color={activeTab === 'PLAYERS' ? COLORS.accentGold : COLORS.textMuted}
+            color={activeTab === 'PLAYERS' ? themeColors.accentGold : themeColors.textMuted}
           />
-          <Text style={[styles.tabLabel, activeTab === 'PLAYERS' && styles.tabLabelActive]}>
+          <Text style={[styles.tabLabel, { color: themeColors.textMuted }, activeTab === 'PLAYERS' && { color: themeColors.accentGold, fontWeight: '800' }]}>
             Opponents
           </Text>
         </TouchableOpacity>
@@ -176,9 +224,9 @@ function MainApp() {
           <MaterialCommunityIcons
             name={activeTab === 'HISTORY' ? 'history' : 'clock-outline'}
             size={22}
-            color={activeTab === 'HISTORY' ? COLORS.accentGold : COLORS.textMuted}
+            color={activeTab === 'HISTORY' ? themeColors.accentGold : themeColors.textMuted}
           />
-          <Text style={[styles.tabLabel, activeTab === 'HISTORY' && styles.tabLabelActive]}>
+          <Text style={[styles.tabLabel, { color: themeColors.textMuted }, activeTab === 'HISTORY' && { color: themeColors.accentGold, fontWeight: '800' }]}>
             Ledger Logs
           </Text>
         </TouchableOpacity>
@@ -191,13 +239,14 @@ function MainApp() {
           <Ionicons
             name={activeTab === 'SETTINGS' ? 'settings' : 'settings-outline'}
             size={22}
-            color={activeTab === 'SETTINGS' ? COLORS.accentGold : COLORS.textMuted}
+            color={activeTab === 'SETTINGS' ? themeColors.accentGold : themeColors.textMuted}
           />
-          <Text style={[styles.tabLabel, activeTab === 'SETTINGS' && styles.tabLabelActive]}>
+          <Text style={[styles.tabLabel, { color: themeColors.textMuted }, activeTab === 'SETTINGS' && { color: themeColors.accentGold, fontWeight: '800' }]}>
             Settings
           </Text>
         </TouchableOpacity>
       </View>
+
 
       {/* Global Modals */}
       <AddPlayerModal

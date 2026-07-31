@@ -1,39 +1,96 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, Share, Modal } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../theme/colors';
+import { COLORS, THEMES } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
+import { PasscodeLockScreen } from '../components/PasscodeLockScreen';
 
 const CURRENCIES = [
   { symbol: '$', code: 'USD' },
   { symbol: '৳', code: 'BDT' },
-  { symbol: '£', code: 'GBP' },
-  { symbol: '€', code: 'EUR' },
   { symbol: '₹', code: 'INR' },
-  { symbol: '¥', code: 'JPY/CNY' },
-  { symbol: 'C$', code: 'CAD' },
-  { symbol: 'A$', code: 'AUD' },
-  { symbol: 'S$', code: 'SGD' },
-  { symbol: '₱', code: 'PHP' },
-  { symbol: '₫', code: 'VND' },
-  { symbol: 'R$', code: 'BRL' },
-  { symbol: 'AED', code: 'AED' },
-  { symbol: 'SAR', code: 'SAR' },
-  { symbol: 'MYR', code: 'MYR' },
-  { symbol: 'PKR', code: 'PKR' },
+  { symbol: '€', code: 'EUR' },
 ];
 
 export const SettingsScreen = () => {
-  const { settings, saveSettings, resetAllData, importBackupData, players, transactions, showToast, addClubName, removeClubName } = useGuts();
+  const { settings, saveSettings, changeTheme, themeColors, resetAllData, importBackupData, players, transactions, showToast, addClubName, removeClubName } = useGuts();
 
   const [clubName, setClubName] = useState(settings.clubName || 'Imperial Snooker Club');
   const [newClubInput, setNewClubInput] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState(settings.currencySymbol || '$');
-  const [customCurrency, setCustomCurrency] = useState('');
   const [defaultRate, setDefaultRate] = useState(String(settings.defaultRatePerPoint || 1.0));
 
   const [importJson, setImportJson] = useState('');
   const [showImportBox, setShowImportBox] = useState(false);
+
+  const activeThemeId = settings.theme || 'EMERALD_FELT';
+
+  // Passcode Lock States
+  const [isPasscodeModalVisible, setIsPasscodeModalVisible] = useState(false);
+  const [passcodeFlowMode, setPasscodeFlowMode] = useState('CREATE'); // 'CREATE', 'CONFIRM', 'VERIFY_DISABLE', 'VERIFY_CHANGE'
+  const [tempPasscode, setTempPasscode] = useState('');
+  const [passcodeModalTitle, setPasscodeModalTitle] = useState('CREATE 4-DIGIT PASSCODE');
+  const [passcodeModalDesc, setPasscodeModalDesc] = useState('Define a passcode to protect Guts Ledger');
+
+  const handleTogglePasscodeLock = () => {
+    if (settings.usePasscode) {
+      setPasscodeFlowMode('VERIFY_DISABLE');
+      setPasscodeModalTitle('ENTER CURRENT PASSCODE');
+      setPasscodeModalDesc('Verify your passcode to disable lock');
+      setIsPasscodeModalVisible(true);
+    } else {
+      setPasscodeFlowMode('CREATE');
+      setPasscodeModalTitle('CREATE 4-DIGIT PASSCODE');
+      setPasscodeModalDesc('Define a passcode to protect Guts Ledger');
+      setIsPasscodeModalVisible(true);
+    }
+  };
+
+  const handleChangePasscode = () => {
+    setPasscodeFlowMode('VERIFY_CHANGE');
+    setPasscodeModalTitle('ENTER CURRENT PASSCODE');
+    setPasscodeModalDesc('Verify your current passcode first');
+    setIsPasscodeModalVisible(true);
+  };
+
+  const handlePasscodeCancel = () => {
+    setIsPasscodeModalVisible(false);
+    setTempPasscode('');
+  };
+
+  const handlePasscodeSuccess = async (code) => {
+    if (passcodeFlowMode === 'CREATE') {
+      setTempPasscode(code);
+      setPasscodeFlowMode('CONFIRM');
+      setPasscodeModalTitle('CONFIRM PASSCODE');
+      setPasscodeModalDesc('Re-enter the 4-digit passcode to verify');
+    } else if (passcodeFlowMode === 'CONFIRM') {
+      await saveSettings({
+        ...settings,
+        usePasscode: true,
+        passcode: tempPasscode,
+      });
+      setIsPasscodeModalVisible(false);
+      showToast('Passcode protection activated!', 'success');
+    } else if (passcodeFlowMode === 'VERIFY_DISABLE') {
+      await saveSettings({
+        ...settings,
+        usePasscode: false,
+        passcode: '',
+      });
+      setIsPasscodeModalVisible(false);
+      showToast('Passcode protection disabled', 'success');
+    } else if (passcodeFlowMode === 'VERIFY_CHANGE') {
+      setPasscodeFlowMode('CREATE');
+      setPasscodeModalTitle('ENTER NEW PASSCODE');
+      setPasscodeModalDesc('Enter a new 4-digit passcode');
+    }
+  };
+
+  const handleSelectTheme = async (themeKey) => {
+    await changeTheme(themeKey);
+    showToast(`Applied ${THEMES[themeKey]?.name || 'Theme'}!`, 'success');
+  };
 
   const handleAddNewClub = async () => {
     if (!newClubInput.trim()) {
@@ -54,9 +111,10 @@ export const SettingsScreen = () => {
     showToast(`Removed "${name}"`, 'success');
   };
 
-  const handleExportBackup = () => {
+  const handleExportBackup = async () => {
     const backupObj = {
       version: 1,
+      appName: 'Snooker Guts',
       exportedAt: new Date().toISOString(),
       settings,
       players,
@@ -65,7 +123,36 @@ export const SettingsScreen = () => {
     const jsonStr = JSON.stringify(backupObj, null, 2);
     setImportJson(jsonStr);
     setShowImportBox(true);
-    showToast('Backup JSON copied below!', 'success');
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      try {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const dateStr = new Date().toISOString().split('T')[0];
+        link.href = url;
+        link.download = `snooker_guts_backup_${dateStr}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast('Downloaded snooker_guts_backup.json to files!', 'success');
+        return;
+      } catch (err) {
+        console.log('Web download fallback:', err);
+      }
+    }
+
+    try {
+      await Share.share({
+        title: 'Snooker Guts Ledger Backup.json',
+        message: jsonStr,
+      });
+      showToast('Backup JSON exported successfully!', 'success');
+    } catch (e) {
+      console.error('Error sharing backup', e);
+      showToast('Backup JSON generated in box below!', 'success');
+    }
   };
 
   const handleProcessImport = async () => {
@@ -90,19 +177,29 @@ export const SettingsScreen = () => {
       return;
     }
 
-    const activeCurrency = customCurrency.trim() ? customCurrency.trim() : selectedCurrency;
-
     await saveSettings({
       ...settings,
       clubName,
-      currencySymbol: activeCurrency,
+      currencySymbol: selectedCurrency,
       defaultRatePerPoint: rateNum,
     });
 
-    showToast(`Preferences saved! Currency updated to ${activeCurrency}`, 'success');
+    showToast(`Preferences saved! Currency updated to ${selectedCurrency}`, 'success');
   };
 
   const handleResetData = () => {
+    if (Platform.OS === 'web') {
+      const confirmReset = window.confirm(
+        'Reset All Data?\n\nWARNING: This will permanently delete all opponents, match histories, and ledger balances. This action cannot be undone.'
+      );
+      if (confirmReset) {
+        resetAllData().then(() => {
+          window.alert('All app data has been reset.');
+        });
+      }
+      return;
+    }
+
     Alert.alert(
       'Reset All Data?',
       'WARNING: This will permanently delete all opponents, match histories, and ledger balances. This action cannot be undone.',
@@ -119,40 +216,72 @@ export const SettingsScreen = () => {
       ]
     );
   };
+  const styles = getStyles(themeColors);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
+
       <View style={styles.content}>
         {/* Banner */}
-        <View style={styles.settingsHeaderCard}>
-          <MaterialCommunityIcons name="billiards" size={32} color={COLORS.accentGold} />
+        <View style={[styles.settingsHeaderCard, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]}>
+          <MaterialCommunityIcons name="billiards" size={32} color={themeColors.accentGold} />
           <View style={styles.headerTextCol}>
-            <Text style={styles.headerTitle}>Club & Ledger Preferences</Text>
-            <Text style={styles.headerSub}>Manage Guts point values, currency, & club configuration</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Club & Ledger Preferences</Text>
+            <Text style={[styles.headerSub, { color: themeColors.textMuted }]}>Manage Guts point values, currency, & club configuration</Text>
           </View>
         </View>
 
+        {/* Snooker Felt Color Themes */}
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>SNOOKER FELT COLOR THEME</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.themeScroll}>
+          {Object.values(THEMES).map(t => (
+            <TouchableOpacity
+              key={t.id}
+              style={[
+                styles.compactThemePill,
+                { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder },
+                activeThemeId === t.id && { borderColor: themeColors.accentGold, backgroundColor: themeColors.primaryDark }
+              ]}
+              onPress={() => handleSelectTheme(t.id)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.compactThemeSwatch, { backgroundColor: t.feltColor }]}>
+                <View style={[styles.compactThemeAccentDot, { backgroundColor: t.accentColor }]} />
+              </View>
+              <Text style={[
+                styles.compactThemeText,
+                { color: themeColors.textSecondary },
+                activeThemeId === t.id && { color: themeColors.accentGold, fontWeight: '800' }
+              ]}>
+                {t.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {/* Default Home Lounge Name */}
-        <Text style={styles.label}>DEFAULT HOME LOUNGE / CLUB NAME</Text>
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>DEFAULT HOME LOUNGE / CLUB NAME</Text>
+
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder, color: themeColors.textPrimary }]}
           value={clubName}
           onChangeText={setClubName}
           placeholder="e.g. Imperial Snooker Club"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={themeColors.textMuted}
         />
 
         {/* Pre-categorized Snooker Clubs Directory */}
-        <Text style={styles.label}>PRE-CATEGORIZED SNOOKER CLUBS & VENUES DIRECTORY</Text>
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>PRE-CATEGORIZED SNOOKER CLUBS & VENUES DIRECTORY</Text>
         <View style={styles.addClubRow}>
           <TextInput
-            style={[styles.input, { flex: 1, marginBottom: 0 }]}
+            style={[styles.input, { flex: 1, marginBottom: 0, backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder, color: themeColors.textPrimary }]}
             placeholder="e.g. Rack & Cue Arena, Cue Zone"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             value={newClubInput}
             onChangeText={setNewClubInput}
           />
-          <TouchableOpacity style={styles.addClubBtn} onPress={handleAddNewClub}>
+          <TouchableOpacity style={[styles.addClubBtn, { backgroundColor: themeColors.accentGold }]} onPress={handleAddNewClub}>
             <Ionicons name="add" size={20} color="#000" />
             <Text style={styles.addClubBtnText}>Add</Text>
           </TouchableOpacity>
@@ -160,38 +289,47 @@ export const SettingsScreen = () => {
 
         <View style={styles.clubChipGrid}>
           {(settings.clubs || ['Imperial Snooker Club', 'Cue Zone Lounge', 'Rack & Cue Arena']).map(club => (
-            <View key={club} style={[styles.clubChip, clubName === club && styles.clubChipActive]}>
+            <View key={club} style={[
+              styles.clubChip, 
+              { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder },
+              clubName === club && { borderColor: themeColors.accentGold, backgroundColor: themeColors.primaryDark }
+            ]}>
               <TouchableOpacity style={styles.clubChipSelect} onPress={() => setClubName(club)}>
-                <MaterialCommunityIcons name="map-marker" size={14} color={clubName === club ? COLORS.accentGold : COLORS.textMuted} />
-                <Text style={[styles.clubChipText, clubName === club && styles.clubChipTextActive]}>
+                <MaterialCommunityIcons name="map-marker" size={14} color={clubName === club ? themeColors.accentGold : themeColors.textMuted} />
+                <Text style={[
+                  styles.clubChipText, 
+                  { color: themeColors.textMuted },
+                  clubName === club && { color: themeColors.accentGold, fontWeight: '800' }
+                ]}>
                   {club}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleRemoveClub(club)} style={styles.clubChipDelete}>
-                <Ionicons name="close" size={14} color={COLORS.payable} />
+                <Ionicons name="close" size={14} color={themeColors.payable} />
               </TouchableOpacity>
             </View>
           ))}
         </View>
 
         {/* Currency Symbol Picker */}
-        <Text style={styles.label}>SYSTEM-WIDE CURRENCY SYMBOL</Text>
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>SYSTEM-WIDE CURRENCY SYMBOL</Text>
         <View style={styles.currencyGrid}>
           {CURRENCIES.map(curr => (
             <TouchableOpacity
               key={curr.symbol}
               style={[
                 styles.currencyPill,
-                !customCurrency && selectedCurrency === curr.symbol && styles.currencyPillActive,
+                { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder },
+                selectedCurrency === curr.symbol && { backgroundColor: themeColors.accentGold, borderColor: themeColors.accentGold },
               ]}
               onPress={() => {
                 setSelectedCurrency(curr.symbol);
-                setCustomCurrency('');
               }}
             >
               <Text style={[
                 styles.currencyText,
-                !customCurrency && selectedCurrency === curr.symbol && styles.currencyTextActive,
+                { color: themeColors.textMuted },
+                selectedCurrency === curr.symbol && { color: '#000', fontWeight: '800' },
               ]}>
                 {curr.symbol}
               </Text>
@@ -199,62 +337,80 @@ export const SettingsScreen = () => {
           ))}
         </View>
 
-        {/* Custom Currency Input */}
-        <Text style={styles.label}>OR CUSTOM CURRENCY SYMBOL / CODE</Text>
-        <TextInput
-          style={styles.input}
-          value={customCurrency}
-          onChangeText={setCustomCurrency}
-          placeholder="e.g. BDT, RM, KWD, SAR, EGP"
-          placeholderTextColor={COLORS.textMuted}
-        />
-
         {/* Default Rate Per Point */}
-        <Text style={styles.label}>DEFAULT RATE PER GUTS POINT ({selectedCurrency})</Text>
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>DEFAULT RATE PER GUTS POINT ({selectedCurrency})</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder, color: themeColors.textPrimary }]}
           keyboardType="decimal-pad"
           value={defaultRate}
           onChangeText={setDefaultRate}
           placeholder="e.g. 1.00"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={themeColors.textMuted}
         />
-        <Text style={styles.helperText}>
+        <Text style={[styles.helperText, { color: themeColors.textMuted }]}>
           Each Guts point won will default to {selectedCurrency}{parseFloat(defaultRate) || 1} in cash value. You can override this per match.
         </Text>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSaveSettings}>
+        <TouchableOpacity style={[styles.saveBtn, { backgroundColor: themeColors.accentGold }]} onPress={handleSaveSettings}>
           <Ionicons name="checkmark-circle" size={20} color="#000" />
           <Text style={styles.saveBtnText}>Save Preferences</Text>
         </TouchableOpacity>
 
-        {/* App Stats */}
-        <Text style={styles.sectionHeader}>LEDGER STATISTICS</Text>
-        <View style={styles.statsCard}>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Registered Opponents</Text>
-            <Text style={styles.statVal}>{players.length}</Text>
+        {/* Passcode Security Lock */}
+        <Text style={[styles.sectionHeader, { color: themeColors.textSecondary }]}>SECURITY LOCK</Text>
+        <View style={[styles.securityCard, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]}>
+          <View style={styles.securityRow}>
+            <View style={styles.securityInfo}>
+              <Ionicons name="shield-checkmark" size={20} color={settings.usePasscode ? themeColors.accentGold : themeColors.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.securityTitleText, { color: themeColors.textPrimary }]}>Passcode Protection</Text>
+                <Text style={[styles.securitySubtext, { color: themeColors.textMuted }]}>Prompt for passcode on startup & resume</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={[styles.toggleBtn, settings.usePasscode ? styles.toggleBtnOn : styles.toggleBtnOff]}
+              onPress={handleTogglePasscodeLock}
+            >
+              <View style={[styles.toggleCircle, settings.usePasscode ? styles.toggleCircleOn : styles.toggleCircleOff]} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.divider} />
+          
+          {settings.usePasscode && (
+            <TouchableOpacity style={styles.changePasscodeBtn} onPress={handleChangePasscode}>
+              <Ionicons name="key-outline" size={14} color={themeColors.accentGold} />
+              <Text style={styles.changePasscodeBtnText}>Change 4-Digit Passcode</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* App Stats */}
+        <Text style={[styles.sectionHeader, { color: themeColors.textSecondary }]}>LEDGER STATISTICS</Text>
+        <View style={[styles.statsCard, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]}>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total Ledger Transactions</Text>
-            <Text style={styles.statVal}>{transactions.length}</Text>
+            <Text style={[styles.statLabel, { color: themeColors.textMuted }]}>Registered Opponents</Text>
+            <Text style={[styles.statVal, { color: themeColors.accentGold }]}>{players.length}</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: themeColors.surfaceBorder }]} />
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: themeColors.textMuted }]}>Total Ledger Transactions</Text>
+            <Text style={[styles.statVal, { color: themeColors.accentGold }]}>{transactions.length}</Text>
           </View>
         </View>
 
         {/* Data Backup & Restore */}
-        <Text style={styles.sectionHeader}>DATA BACKUP & RESTORE</Text>
-        <TouchableOpacity style={styles.backupBtn} onPress={handleExportBackup}>
-          <Ionicons name="cloud-download-outline" size={18} color={COLORS.accentGold} />
-          <Text style={styles.backupBtnText}>Export Backup (Generate JSON)</Text>
+        <Text style={[styles.sectionHeader, { color: themeColors.textSecondary }]}>DATA BACKUP & RESTORE</Text>
+        <TouchableOpacity style={[styles.backupBtn, { backgroundColor: themeColors.surface, borderColor: themeColors.accentGold }]} onPress={handleExportBackup}>
+          <Ionicons name="cloud-download-outline" size={18} color={themeColors.accentGold} />
+          <Text style={[styles.backupBtnText, { color: themeColors.accentGold }]}>Export Backup (Generate JSON)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.backupBtn, { marginTop: 8 }]} 
+          style={[styles.backupBtn, { marginTop: 8, backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]} 
           onPress={() => setShowImportBox(!showImportBox)}
         >
-          <Ionicons name="cloud-upload-outline" size={18} color={COLORS.textPrimary} />
-          <Text style={[styles.backupBtnText, { color: COLORS.textPrimary }]}>
+          <Ionicons name="cloud-upload-outline" size={18} color={themeColors.textPrimary} />
+          <Text style={[styles.backupBtnText, { color: themeColors.textPrimary }]}>
+
             {showImportBox ? 'Hide Import Box' : 'Restore Backup (Import JSON)'}
           </Text>
         </TouchableOpacity>
@@ -284,11 +440,31 @@ export const SettingsScreen = () => {
           <Text style={styles.dangerBtnText}>Reset All Opponents & Ledger</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Passcode Lock Setup Modal */}
+      <Modal visible={isPasscodeModalVisible} animationType="slide">
+        <PasscodeLockScreen
+          key={passcodeFlowMode}
+          correctPasscode={
+            passcodeFlowMode === 'CREATE'
+              ? null
+              : passcodeFlowMode === 'CONFIRM'
+              ? tempPasscode
+              : settings.passcode
+          }
+          title={passcodeModalTitle}
+          description={passcodeModalDesc}
+          onSuccess={handlePasscodeSuccess}
+          onCancel={handlePasscodeCancel}
+          cancelText="Cancel"
+        />
+      </Modal>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -546,4 +722,107 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 13,
   },
+  themeScroll: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  compactThemePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 8,
+    gap: 8,
+  },
+  compactThemeSwatch: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactThemeAccentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  compactThemeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  securityCard: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  securityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  securityTitleText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  securitySubtext: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  toggleBtn: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleBtnOn: {
+    backgroundColor: COLORS.accentGold,
+  },
+  toggleBtnOff: {
+    backgroundColor: COLORS.surfaceLight,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+  },
+  toggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+  },
+  toggleCircleOn: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#000',
+  },
+  toggleCircleOff: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.textMuted,
+  },
+  changePasscodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.surfaceBorder,
+  },
+  changePasscodeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.accentGold,
+  },
 });
+

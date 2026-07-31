@@ -1,11 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../theme/colors';
+import { COLORS, useTheme } from '../theme/colors';
 
 export const Toast = ({ visible, message, type = 'success', onDismiss }) => {
+  const COLORS = useTheme();
   const slideAnim = useRef(new Animated.Value(-80)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+
 
   useEffect(() => {
     const useNative = Platform.OS !== 'web';
@@ -63,14 +65,15 @@ export const Toast = ({ visible, message, type = 'success', onDismiss }) => {
         },
       ]}
     >
-      <View style={styles.toastContent}>
+      <View style={[styles.toastContent, { backgroundColor: COLORS.surface, borderColor: COLORS.accentGold }]}>
         <Ionicons
           name={type === 'success' ? 'checkmark-circle' : 'alert-circle'}
           size={20}
           color={type === 'success' ? COLORS.receivable : COLORS.payable}
         />
-        <Text style={styles.toastText}>{message}</Text>
+        <Text style={[styles.toastText, { color: COLORS.textPrimary }]}>{message}</Text>
       </View>
+
     </Animated.View>
   );
 };

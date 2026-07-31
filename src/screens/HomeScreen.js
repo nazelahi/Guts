@@ -4,11 +4,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 import { StatCard } from '../components/StatCard';
+import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { PlayerCard } from '../components/PlayerCard';
 import { LedgerCardSkeleton } from '../components/SkeletonLoader';
 
 export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOpenTransfer, onOpenPlayerDetail }) => {
-  const { playerSummaries } = useGuts();
+  const { playerSummaries, themeColors, showToast } = useGuts();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -24,6 +25,8 @@ export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOp
     (p.notes && p.notes.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const styles = getStyles(themeColors);
+
   return (
     <ScrollView 
       style={styles.container} 
@@ -32,40 +35,65 @@ export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOp
         <RefreshControl 
           refreshing={refreshing} 
           onRefresh={onRefresh} 
-          tintColor={COLORS.accentGold} 
-          colors={[COLORS.accentGold]} 
+          tintColor={themeColors.accentGold} 
+          colors={[themeColors.accentGold]} 
         />
       }
     >
+
       {/* Visual Stat Overview */}
       <StatCard />
+
+      {/* Monthly Performance & Financial Trends Chart */}
+      <MonthlyTrendsChart />
+
 
       {/* Quick Action Floating Bar */}
       <View style={styles.quickBar}>
         <TouchableOpacity style={styles.quickActionBtn} onPress={onOpenAddPlayer} activeOpacity={0.8}>
           <View style={styles.actionIconBg}>
-            <Ionicons name="person-add" size={16} color={COLORS.accentGold} />
+            <Ionicons name="person-add" size={13} color={themeColors.accentGold} />
           </View>
-          <Text style={styles.actionText}>+ Player</Text>
+          <Text style={styles.actionText}>Player</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.quickActionBtn, styles.primaryMatchBtn]} onPress={() => onOpenAddMatch()} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={[styles.quickActionBtn, styles.primaryMatchBtn]} 
+          onPress={() => {
+            if (playerSummaries.length === 0) {
+              showToast('Please add an opponent player first.', 'error');
+            } else {
+              onOpenAddMatch();
+            }
+          }} 
+          activeOpacity={0.8}
+        >
           <View style={styles.primaryActionIconBg}>
-            <MaterialCommunityIcons name="trophy" size={18} color="#000" />
+            <MaterialCommunityIcons name="sword-cross" size={14} color={themeColors.accentGold} />
           </View>
-          <Text style={styles.primaryActionText}>+ Match</Text>
+          <Text style={styles.primaryActionText}>Match</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.quickActionBtn} onPress={() => onOpenTransfer()} activeOpacity={0.8}>
           <View style={styles.actionIconBg}>
-            <MaterialCommunityIcons name="swap-horizontal" size={18} color={COLORS.accentGold} />
+            <MaterialCommunityIcons name="swap-horizontal" size={14} color={themeColors.accentGold} />
           </View>
           <Text style={styles.actionText}>Transfer</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.quickActionBtn} onPress={() => onOpenSettle(playerSummaries[0] || null)} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.quickActionBtn} 
+          onPress={() => {
+            if (playerSummaries.length === 0) {
+              showToast('Please add an opponent player first.', 'error');
+            } else {
+              onOpenSettle(playerSummaries[0]);
+            }
+          }} 
+          activeOpacity={0.8}
+        >
           <View style={styles.actionIconBg}>
-            <Ionicons name="cash-outline" size={16} color={COLORS.receivable} />
+            <Ionicons name="cash-outline" size={13} color={themeColors.receivable} />
           </View>
           <Text style={styles.actionText}>Settle</Text>
         </TouchableOpacity>
@@ -77,21 +105,22 @@ export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOp
 
         {/* Quick Search Input */}
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={14} color={COLORS.textMuted} />
+          <Ionicons name="search" size={14} color={themeColors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search opponent..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={14} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={14} color={themeColors.textMuted} />
             </TouchableOpacity>
           ) : null}
         </View>
       </View>
+
 
       <View style={styles.playerListContainer}>
         {refreshing ? (
@@ -102,10 +131,10 @@ export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOp
           </>
         ) : filteredPlayers.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="account-search-outline" size={44} color={COLORS.surfaceBorder} />
+            <MaterialCommunityIcons name="account-search-outline" size={44} color={themeColors.surfaceBorder} />
             <Text style={styles.emptyTitle}>No Opponents Found</Text>
             <Text style={styles.emptySub}>
-              {searchQuery ? 'Try a different search term.' : 'Tap "+ Player" to add your snooker buddies.'}
+              {searchQuery ? `No opponents match "${searchQuery}"` : 'Add your first opponent player to start tracking ledger balances.'}
             </Text>
           </View>
         ) : (
@@ -114,8 +143,8 @@ export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOp
               key={player.id}
               player={player}
               onPressDetail={onOpenPlayerDetail}
-              onPressAddMatch={(p) => onOpenAddMatch(p.id)}
-              onPressSettle={(p) => onOpenSettle(p)}
+              onPressAddMatch={onOpenAddMatch}
+              onPressSettle={onOpenSettle}
             />
           ))
         )}
@@ -124,7 +153,7 @@ export const HomeScreen = ({ onOpenAddPlayer, onOpenAddMatch, onOpenSettle, onOp
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -138,44 +167,45 @@ const styles = StyleSheet.create({
   quickActionBtn: {
     flex: 1,
     backgroundColor: COLORS.surface,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
-    gap: 4,
+    gap: 6,
   },
   primaryMatchBtn: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.accentGold,
     borderColor: COLORS.accentGold,
-    flex: 1.2,
+    flex: 1.1,
   },
   actionIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: COLORS.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   primaryActionIconBg: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.accentGold,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
   primaryActionText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '800',
-    color: COLORS.accentGold,
+    color: '#000',
   },
   sectionHeader: {
     marginHorizontal: 16,

@@ -32,9 +32,11 @@ export const AVATAR_ICONS = [
 ];
 
 export const AddPlayerModal = ({ visible, onClose, playerToEdit = null }) => {
-  const { addPlayer, editPlayer, showToast } = useGuts();
+  const { players, addPlayer, editPlayer, showToast, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
 
   const [name, setName] = useState('');
+
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedColor, setSelectedColor] = useState(SNOOKER_AVATARS[0].color);
@@ -113,32 +115,43 @@ export const AddPlayerModal = ({ visible, onClose, playerToEdit = null }) => {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       showToast('Please enter player name.', 'error');
+      return;
+    }
+
+    const isDuplicate = (players || []).some(
+      p => p.name.toLowerCase() === trimmedName.toLowerCase() && (!isEditMode || p.id !== playerToEdit.id)
+    );
+
+    if (isDuplicate) {
+      showToast(`Opponent named "${trimmedName}" already exists!`, 'error');
       return;
     }
 
     if (isEditMode) {
       await editPlayer(playerToEdit.id, {
-        name: name.trim(),
+        name: trimmedName,
         phone: phone.trim(),
         notes: notes.trim(),
         avatarColor: selectedColor,
         avatarIcon: selectedIcon,
         avatarUri,
       });
-      showToast(`Updated profile for ${name.trim()}`, 'success');
+      showToast(`Updated profile for ${trimmedName}`, 'success');
     } else {
       await addPlayer({
-        name: name.trim(),
+        name: trimmedName,
         phone: phone.trim(),
         notes: notes.trim(),
         avatarColor: selectedColor,
         avatarIcon: selectedIcon,
         avatarUri,
       });
-      showToast(`Added ${name.trim()} to opponents!`, 'success');
+      showToast(`Added ${trimmedName} to opponents!`, 'success');
     }
+
 
     onClose();
   };
@@ -321,7 +334,8 @@ export const AddPlayerModal = ({ visible, onClose, playerToEdit = null }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',

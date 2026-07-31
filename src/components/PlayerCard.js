@@ -5,8 +5,10 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSettle }) => {
-  const { settings } = useGuts();
+  const { settings, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
   const symbol = settings.currencySymbol || '$';
+
 
   const isOwesYou = player.netCashAmount > 0;
   const isYouOwe = player.netCashAmount < 0;
@@ -17,14 +19,14 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
 
   return (
     <TouchableOpacity 
-      style={styles.cardContainer} 
+      style={[styles.cardContainer, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]} 
       onPress={() => onPressDetail(player)}
       activeOpacity={0.75}
     >
       <View style={styles.topRow}>
         {/* Avatar & Player Info */}
         <View style={styles.playerInfo}>
-          <View style={[styles.avatar, { backgroundColor: player.avatarColor || COLORS.primary }]}>
+          <View style={[styles.avatar, { backgroundColor: player.avatarColor || themeColors.primary }]}>
             {player.avatarUri ? (
               <Image source={{ uri: player.avatarUri }} style={styles.avatarImage} />
             ) : player.avatarIcon ? (
@@ -34,13 +36,13 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
             )}
           </View>
           <View style={styles.nameContainer}>
-            <Text style={styles.playerName}>{player.name}</Text>
+            <Text style={[styles.playerName, { color: themeColors.textPrimary }]}>{player.name}</Text>
             {player.notes ? (
-              <Text style={styles.playerNotes} numberOfLines={1}>
+              <Text style={[styles.playerNotes, { color: themeColors.textMuted }]} numberOfLines={1}>
                 {player.notes}
               </Text>
             ) : (
-              <Text style={styles.playerSubtext}>
+              <Text style={[styles.playerSubtext, { color: themeColors.textMuted }]}>
                 {player.txCount} transaction{player.txCount !== 1 ? 's' : ''}
               </Text>
             )}
@@ -51,9 +53,9 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
         <View style={styles.balanceContainer}>
           <Text style={[
             styles.cashAmount,
-            isOwesYou && { color: COLORS.receivable },
-            isYouOwe && { color: COLORS.payable },
-            isSettled && { color: COLORS.settled },
+            isOwesYou && { color: themeColors.receivable },
+            isYouOwe && { color: themeColors.payable },
+            isSettled && { color: themeColors.settled },
           ]}>
             {isOwesYou ? `+${symbol}` : isYouOwe ? `-${symbol}` : symbol}
             {Math.abs(player.netCashAmount).toFixed(2)}
@@ -63,13 +65,13 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
             <MaterialCommunityIcons 
               name="rhombus-medium" 
               size={12} 
-              color={isOwesYou ? COLORS.receivable : isYouOwe ? COLORS.payable : COLORS.settled} 
+              color={isOwesYou ? themeColors.receivable : isYouOwe ? themeColors.payable : themeColors.settled} 
             />
             <Text style={[
               styles.gutsPointsText,
-              isOwesYou && { color: COLORS.receivable },
-              isYouOwe && { color: COLORS.payable },
-              isSettled && { color: COLORS.settled },
+              isOwesYou && { color: themeColors.receivable },
+              isYouOwe && { color: themeColors.payable },
+              isSettled && { color: themeColors.settled },
             ]}>
               {player.netGutsPoints > 0 ? `+${player.netGutsPoints}` : player.netGutsPoints} Pts
             </Text>
@@ -78,18 +80,18 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
       </View>
 
       {/* Footer Status & Action Buttons */}
-      <View style={styles.footerRow}>
+      <View style={[styles.footerRow, { borderTopColor: themeColors.surfaceBorder }]}>
         <View style={[
           styles.statusBadge,
-          isOwesYou && { backgroundColor: COLORS.receivableBg },
-          isYouOwe && { backgroundColor: COLORS.payableBg },
-          isSettled && { backgroundColor: COLORS.settledBg },
+          isOwesYou && { backgroundColor: themeColors.receivableBg },
+          isYouOwe && { backgroundColor: themeColors.payableBg },
+          isSettled && { backgroundColor: themeColors.settledBg },
         ]}>
           <Text style={[
             styles.statusText,
-            isOwesYou && { color: COLORS.receivable },
-            isYouOwe && { color: COLORS.payable },
-            isSettled && { color: COLORS.settled },
+            isOwesYou && { color: themeColors.receivable },
+            isYouOwe && { color: themeColors.payable },
+            isSettled && { color: themeColors.settled },
           ]}>
             {isOwesYou ? 'OWES YOU' : isYouOwe ? 'YOU OWE' : 'SETTLED'}
           </Text>
@@ -98,30 +100,32 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
         <View style={styles.actionButtonsRow}>
           {!isSettled && (
             <TouchableOpacity 
-              style={[styles.smallBtn, styles.settleBtn]} 
+              style={[styles.smallBtn, styles.settleBtn, { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.accentGold }]} 
               onPress={() => onPressSettle(player)}
               activeOpacity={0.7}
             >
-              <Ionicons name="checkmark-circle-outline" size={14} color={COLORS.accentGold} />
-              <Text style={styles.settleBtnText}>Settle Up</Text>
+              <Ionicons name="checkmark-circle-outline" size={14} color={themeColors.accentGold} />
+              <Text style={[styles.settleBtnText, { color: themeColors.accentGold }]}>Settle Up</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity 
-            style={[styles.smallBtn, styles.addMatchBtn]} 
+            style={[styles.smallBtn, styles.addMatchBtn, { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.surfaceBorder }]} 
             onPress={() => onPressAddMatch(player)}
             activeOpacity={0.7}
           >
-            <Ionicons name="add" size={14} color={COLORS.textPrimary} />
-            <Text style={styles.addMatchBtnText}>+ Match</Text>
+            <Ionicons name="add" size={14} color={themeColors.textPrimary} />
+            <Text style={[styles.addMatchBtnText, { color: themeColors.textPrimary }]}>+ Match</Text>
           </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
+
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   cardContainer: {
     backgroundColor: COLORS.surface,
     borderRadius: 14,

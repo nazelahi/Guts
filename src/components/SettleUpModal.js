@@ -5,8 +5,10 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const SettleUpModal = ({ visible, onClose, player }) => {
-  const { settings, settlePlayerBalance, addTransaction, showToast } = useGuts();
+  const { settings, settlePlayerBalance, addTransaction, showToast, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
   const symbol = settings.currencySymbol || '$';
+
 
   const [settlementMode, setSettlementMode] = useState('FULL'); // 'FULL' or 'PARTIAL'
   const [partialAmount, setPartialAmount] = useState('');
@@ -21,6 +23,20 @@ export const SettleUpModal = ({ visible, onClose, player }) => {
   const handleSettle = async () => {
     if (settlementMode === 'FULL') {
       await settlePlayerBalance(player.id);
+
+      if (currentNetCash > 0) {
+        const signedCash = isOwesYou ? -currentNetCash : currentNetCash;
+        await addTransaction({
+          playerId: player.id,
+          type: 'SETTLEMENT',
+          gutsPoints: 0,
+          ratePerPoint: 0,
+          amount: signedCash,
+          notes: notes || `Full ${isOwesYou ? 'received' : 'paid'} cash settlement`,
+          status: 'SETTLED',
+        });
+      }
+
       showToast(`Cleared full balance for ${player.name}!`, 'success');
     } else {
       const amount = parseFloat(partialAmount);
@@ -162,7 +178,8 @@ export const SettleUpModal = ({ visible, onClose, player }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',

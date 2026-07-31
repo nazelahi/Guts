@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Platform } from 'react-native';
-import { COLORS } from '../theme/colors';
+import { useTheme } from '../theme/colors';
 
 export const SkeletonCard = ({ style }) => {
+  const COLORS = useTheme();
   const opacityAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -23,56 +24,56 @@ export const SkeletonCard = ({ style }) => {
     ).start();
   }, []);
 
-  return <Animated.View style={[styles.skeletonBase, { opacity: opacityAnim }, style]} />;
+  return <Animated.View style={[{ backgroundColor: COLORS.surfaceLight, borderRadius: 8 }, { opacity: opacityAnim }, style]} />;
 };
 
-export const LedgerCardSkeleton = () => (
-  <View style={styles.cardContainer}>
-    <View style={styles.topRow}>
-      <View style={styles.leftCol}>
-        <SkeletonCard style={styles.avatarSkeleton} />
-        <View style={styles.textGroup}>
-          <SkeletonCard style={styles.nameSkeleton} />
-          <SkeletonCard style={styles.subSkeleton} />
+export const LedgerCardSkeleton = () => {
+  const COLORS = useTheme();
+  return (
+    <View style={[styles.cardContainer, { backgroundColor: COLORS.surface, borderColor: COLORS.surfaceBorder }]}>
+      <View style={styles.topRow}>
+        <View style={styles.leftCol}>
+          <SkeletonCard style={styles.avatarSkeleton} />
+          <View style={styles.textGroup}>
+            <SkeletonCard style={styles.nameSkeleton} />
+            <SkeletonCard style={styles.subSkeleton} />
+          </View>
+        </View>
+        <View style={styles.rightCol}>
+          <SkeletonCard style={styles.amountSkeleton} />
+          <SkeletonCard style={styles.ptsSkeleton} />
         </View>
       </View>
-      <View style={styles.rightCol}>
-        <SkeletonCard style={styles.amountSkeleton} />
-        <SkeletonCard style={styles.ptsSkeleton} />
+      <View style={[styles.bottomRow, { borderTopColor: COLORS.surfaceBorder }]}>
+        <SkeletonCard style={styles.badgeSkeleton} />
+        <SkeletonCard style={styles.btnSkeleton} />
       </View>
     </View>
-    <View style={styles.bottomRow}>
-      <SkeletonCard style={styles.badgeSkeleton} />
-      <SkeletonCard style={styles.btnSkeleton} />
-    </View>
-  </View>
-);
+  );
+};
 
-export const TransactionCardSkeleton = () => (
-  <View style={styles.txContainer}>
-    <View style={styles.leftCol}>
-      <SkeletonCard style={styles.iconSkeleton} />
-      <View style={styles.textGroup}>
-        <SkeletonCard style={styles.nameSkeleton} />
-        <SkeletonCard style={styles.subSkeleton} />
+export const TransactionCardSkeleton = () => {
+  const COLORS = useTheme();
+  return (
+    <View style={[styles.txContainer, { backgroundColor: COLORS.surface, borderColor: COLORS.surfaceBorder }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <SkeletonCard style={styles.iconSkeleton} />
+        <View style={{ gap: 4 }}>
+          <SkeletonCard style={{ width: 100, height: 14, borderRadius: 4 }} />
+          <SkeletonCard style={{ width: 60, height: 10, borderRadius: 4 }} />
+        </View>
       </View>
+      <SkeletonCard style={{ width: 60, height: 18, borderRadius: 4 }} />
     </View>
-    <SkeletonCard style={styles.amountSkeleton} />
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
-  skeletonBase: {
-    backgroundColor: COLORS.surfaceBorder,
-    borderRadius: 6,
-  },
   cardContainer: {
-    backgroundColor: COLORS.surface,
     borderRadius: 14,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
   },
   topRow: {
     flexDirection: 'row',
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
   },
   nameSkeleton: {
     width: 120,
-    height: 16,
+    height: 14,
     borderRadius: 4,
   },
   subSkeleton: {
@@ -123,7 +124,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   badgeSkeleton: {
     width: 70,
@@ -136,12 +136,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   txContainer: {
-    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

@@ -5,14 +5,15 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const Header = ({ onOpenSettings, onOpenCalculator }) => {
-  const { settings, clubTotals } = useGuts();
+  const { settings, clubTotals, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
 
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.brandContainer}>
           <View style={styles.iconCircle}>
-            <MaterialCommunityIcons name="billiards" size={24} color={COLORS.accentGold} />
+            <MaterialCommunityIcons name="billiards" size={24} color={themeColors.accentGold} />
           </View>
           <View>
             <Text style={styles.appTitle}>SNOOKER GUTS</Text>
@@ -26,7 +27,7 @@ export const Header = ({ onOpenSettings, onOpenCalculator }) => {
             onPress={onOpenCalculator}
             activeOpacity={0.7}
           >
-            <Ionicons name="calculator-outline" size={20} color={COLORS.accentGold} />
+            <Ionicons name="calculator-outline" size={20} color={themeColors.accentGold} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -34,7 +35,7 @@ export const Header = ({ onOpenSettings, onOpenCalculator }) => {
             onPress={onOpenSettings}
             activeOpacity={0.7}
           >
-            <Ionicons name="settings-outline" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="settings-outline" size={20} color={themeColors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -42,7 +43,8 @@ export const Header = ({ onOpenSettings, onOpenCalculator }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   container: {
     backgroundColor: COLORS.surface,
     paddingHorizontal: 16,

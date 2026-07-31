@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Toast } from '../components/Toast';
+import { getThemeColors, setCurrentThemeKey } from '../theme/colors';
+
 
 const GutsContext = createContext();
 
@@ -9,8 +11,6 @@ const STORAGE_KEYS = {
   TRANSACTIONS: '@snooker_guts_transactions_v1',
   SETTINGS: '@snooker_guts_settings_v1',
 };
-
-
 
 const DEFAULT_CLUBS = [
   'Imperial Snooker Club',
@@ -25,7 +25,11 @@ const DEFAULT_SETTINGS = {
   clubName: 'Imperial Snooker Club',
   clubs: DEFAULT_CLUBS,
   enableHaptics: true,
+  theme: 'EMERALD_FELT',
+  usePasscode: false,
+  passcode: '',
 };
+
 
 export const GutsProvider = ({ children }) => {
   const [players, setPlayers] = useState([]);
@@ -317,27 +321,34 @@ export const GutsProvider = ({ children }) => {
       let unsettledCashAmount = 0;
 
       playerTxs.forEach(t => {
-        netGutsPoints += t.gutsPoints || 0;
-        netCashAmount += t.amount || 0;
+        const pts = Number(t.gutsPoints) || 0;
+        const amt = Number(t.amount) || 0;
+
+        netGutsPoints += pts;
+        netCashAmount += amt;
 
         if (t.status === 'UNSETTLED') {
-          unsettledGutsPoints += t.gutsPoints || 0;
-          unsettledCashAmount += t.amount || 0;
+          unsettledGutsPoints += pts;
+          unsettledCashAmount += amt;
         }
       });
+
+      const safeCash = isNaN(netCashAmount) ? 0 : netCashAmount;
+      const safeUnsettledCash = isNaN(unsettledCashAmount) ? 0 : unsettledCashAmount;
 
       return {
         ...player,
         txCount: playerTxs.length,
-        netGutsPoints,
-        netCashAmount: Number(netCashAmount.toFixed(2)),
-        unsettledGutsPoints,
-        unsettledCashAmount: Number(unsettledCashAmount.toFixed(2)),
-        // Positive netCashAmount = He owes you money; Negative = You owe him
-        status: netCashAmount > 0 ? 'OWES_YOU' : netCashAmount < 0 ? 'YOU_OWE' : 'SETTLED',
+        netGutsPoints: isNaN(netGutsPoints) ? 0 : netGutsPoints,
+        netCashAmount: Number(safeCash.toFixed(2)),
+        unsettledGutsPoints: isNaN(unsettledGutsPoints) ? 0 : unsettledGutsPoints,
+        unsettledCashAmount: Number(safeUnsettledCash.toFixed(2)),
+        // Positive netCashAmount = Opponent owes you money; Negative = You owe opponent
+        status: safeCash > 0 ? 'OWES_YOU' : safeCash < 0 ? 'YOU_OWE' : 'SETTLED',
       };
     });
   }, [players, transactions]);
+
 
   // Overall Club Totals
   const clubTotals = useMemo(() => {
@@ -372,14 +383,118 @@ export const GutsProvider = ({ children }) => {
     };
   }, [playerSummaries, players]);
 
+  // Head-to-Head (H2H) Stats Calculator per player
+  const getH2HStats = (playerId) => {
+    const playerTxs = transactions.filter(t => t.playerId === playerId);
+    const matchTxs = playerTxs.filter(t => t.type === 'MATCH');
+
+    let wins = 0;
+    let losses = 0;
+    let draws = 0;
+    let biggestWinPoints = 0;
+    let biggestWinCash = 0;
+    let biggestLossPoints = 0;
+    let biggestLossCash = 0;
+    let totalMatchPointsWon = 0;
+    let totalMatchPointsLost = 0;
+
+    matchTxs.forEach(t => {
+      const pts = t.gutsPoints || 0;
+      const amt = t.amount || 0;
+
+      if (pts > 0) {
+        wins += 1;
+        totalMatchPointsWon += pts;
+        if (pts > biggestWinPoints) {
+          biggestWinPoints = pts;
+          biggestWinCash = amt;
+        }
+      } else if (pts < 0) {
+        losses += 1;
+        totalMatchPointsLost += Math.abs(pts);
+        if (Math.abs(pts) > Math.abs(biggestLossPoints)) {
+          biggestLossPoints = pts;
+          biggestLossCash = amt;
+        }
+      } else {
+        draws += 1;
+      }
+    });
+
+    const totalMatches = matchTxs.length;
+    const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+    const recentMatches = matchTxs.slice(0, 5).map(t => ({
+      id: t.id,
+      result: t.gutsPoints > 0 ? 'W' : t.gutsPoints < 0 ? 'L' : 'D',
+      gutsPoints: t.gutsPoints,
+      amount: t.amount,
+      date: t.date,
+    }));
+
+    let streakType = 'NONE';
+    let streakCount = 0;
+
+    if (matchTxs.length > 0) {
+      const first = matchTxs[0].gutsPoints > 0 ? 'W' : matchTxs[0].gutsPoints < 0 ? 'L' : 'D';
+      if (first !== 'D') {
+        streakType = first;
+        for (let i = 0; i < matchTxs.length; i++) {
+          const res = matchTxs[i].gutsPoints > 0 ? 'W' : matchTxs[i].gutsPoints < 0 ? 'L' : 'D';
+          if (res === streakType) {
+            streakCount++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    const avgPointsPerMatch = totalMatches > 0 
+      ? (playerTxs.reduce((sum, t) => sum + (t.gutsPoints || 0), 0) / totalMatches).toFixed(1)
+      : '0.0';
+
+    return {
+      totalMatches,
+      wins,
+      losses,
+      draws,
+      winRate,
+      recentMatches,
+      streakType,
+      streakCount,
+      biggestWinPoints,
+      biggestWinCash: Number(biggestWinCash.toFixed(2)),
+      biggestLossPoints: Math.abs(biggestLossPoints),
+      biggestLossCash: Number(Math.abs(biggestLossCash).toFixed(2)),
+      totalMatchPointsWon,
+      totalMatchPointsLost,
+      avgPointsPerMatch,
+    };
+  };
+
+  const themeColors = useMemo(() => {
+    const activeKey = settings?.theme || 'EMERALD_FELT';
+    setCurrentThemeKey(activeKey);
+    return getThemeColors(activeKey);
+  }, [settings?.theme]);
+
+  const changeTheme = async (themeId) => {
+    setCurrentThemeKey(themeId);
+    const newSettings = { ...settings, theme: themeId };
+    await saveSettings(newSettings);
+  };
+
+
   return (
     <GutsContext.Provider value={{
       players,
       transactions,
       settings,
+      themeColors,
       isLoading,
       playerSummaries,
       clubTotals,
+      getH2HStats,
       addPlayer,
       editPlayer,
       deletePlayer,
@@ -388,6 +503,7 @@ export const GutsProvider = ({ children }) => {
       toggleTransactionStatus,
       deleteTransaction,
       saveSettings,
+      changeTheme,
       resetAllData,
       importBackupData,
       transferGutsPoints,
@@ -407,3 +523,5 @@ export const GutsProvider = ({ children }) => {
 };
 
 export const useGuts = () => useContext(GutsContext);
+
+

@@ -5,8 +5,10 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const AddTransactionModal = ({ visible, onClose, initialPlayerId = null }) => {
-  const { players, settings, addTransaction, showToast } = useGuts();
+  const { players, settings, addTransaction, showToast, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
   const symbol = settings.currencySymbol || '$';
+
 
 
   const [type, setType] = useState('MATCH'); // 'MATCH' or 'SETTLEMENT'
@@ -456,7 +458,8 @@ export const AddTransactionModal = ({ visible, onClose, initialPlayerId = null }
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',

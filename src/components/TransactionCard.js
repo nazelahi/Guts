@@ -5,10 +5,15 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const TransactionCard = ({ transaction, onToggleStatus, onDelete }) => {
-  const { settings, showToast } = useGuts();
+  const { settings, themeColors, showToast } = useGuts();
+  const styles = getStyles(themeColors);
   const symbol = settings.currencySymbol || '$';
 
+
   const isMatch = transaction.type === 'MATCH';
+  const isTransfer = transaction.type === 'TRANSFER';
+  const isSettlement = transaction.type === 'SETTLEMENT';
+  const isPartial = isSettlement && transaction.notes?.toLowerCase().includes('partial');
   const isPositive = transaction.amount > 0;
   const isNegative = transaction.amount < 0;
   const isSettled = transaction.status === 'SETTLED';
@@ -37,25 +42,40 @@ export const TransactionCard = ({ transaction, onToggleStatus, onDelete }) => {
       })
     : '';
 
+  let iconBgColor = 'rgba(16, 185, 129, 0.15)';
+  let borderColor = themeColors.receivable;
+  let iconName = 'cash-check';
+  let iconColor = themeColors.receivable;
+
+  if (isMatch) {
+    iconBgColor = 'rgba(212, 175, 55, 0.15)';
+    borderColor = themeColors.accentGold;
+    iconName = 'billiards';
+    iconColor = themeColors.accentGold;
+  } else if (isTransfer) {
+    iconBgColor = 'rgba(107, 114, 128, 0.15)';
+    borderColor = themeColors.textSecondary;
+    iconName = 'swap-horizontal';
+    iconColor = themeColors.textSecondary;
+  }
+
   return (
-    <View style={[styles.card, isSettled && styles.settledCard]}>
+    <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }, isSettled && styles.settledCard]}>
       <View style={styles.leftCol}>
         <View style={[
           styles.iconBg,
-          isMatch 
-            ? { backgroundColor: 'rgba(212, 175, 55, 0.15)', borderColor: COLORS.accentGold } 
-            : { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: COLORS.receivable }
+          { backgroundColor: iconBgColor, borderColor: borderColor }
         ]}>
           <MaterialCommunityIcons 
-            name={isMatch ? "billiards" : "cash-check"} 
+            name={iconName} 
             size={20} 
-            color={isMatch ? COLORS.accentGold : COLORS.receivable} 
+            color={iconColor} 
           />
         </View>
 
         <View style={styles.detailsCol}>
           <View style={styles.nameRow}>
-            <Text style={styles.playerName}>{transaction.playerName}</Text>
+            <Text style={[styles.playerName, { color: themeColors.textPrimary }]}>{transaction.playerName}</Text>
             <TouchableOpacity 
               style={[styles.statusTag, isSettled ? styles.settledTag : styles.unsettledTag]}
               onPress={handleToggle}
@@ -63,31 +83,46 @@ export const TransactionCard = ({ transaction, onToggleStatus, onDelete }) => {
               <Ionicons 
                 name={isSettled ? "checkmark-circle" : "time-outline"} 
                 size={12} 
-                color={isSettled ? COLORS.settled : COLORS.accentGold} 
+                color={isSettled ? themeColors.settled : themeColors.accentGold} 
               />
-              <Text style={[styles.statusTagText, { color: isSettled ? COLORS.settled : COLORS.accentGold }]}>
+              <Text style={[styles.statusTagText, { color: isSettled ? themeColors.settled : themeColors.accentGold }]}>
                 {isSettled ? 'Settled' : 'Pending'}
               </Text>
             </TouchableOpacity>
+
+            {isSettlement && (
+              <View style={[
+                styles.settlementTag, 
+                isPartial ? styles.partialTag : styles.fullSettleTag,
+                { borderWidth: 1 }
+              ]}>
+                <Text style={[
+                  styles.settlementTagText, 
+                  { color: isPartial ? '#60A5FA' : themeColors.settled }
+                ]}>
+                  {isPartial ? 'Partial Payment' : 'Full Settlement'}
+                </Text>
+              </View>
+            )}
           </View>
 
-          <Text style={styles.dateText}>{formattedDate}</Text>
+          <Text style={[styles.dateText, { color: themeColors.textMuted }]}>{formattedDate}</Text>
 
           {transaction.clubName ? (
             <View style={styles.clubBadge}>
-              <MaterialCommunityIcons name="map-marker-outline" size={11} color={COLORS.accentGold} />
-              <Text style={styles.clubBadgeText}>{transaction.clubName}</Text>
+              <MaterialCommunityIcons name="map-marker-outline" size={11} color={themeColors.accentGold} />
+              <Text style={[styles.clubBadgeText, { color: themeColors.accentGold }]}>{transaction.clubName}</Text>
             </View>
           ) : null}
           
           {transaction.notes ? (
-            <Text style={styles.notesText} numberOfLines={1}>
+            <Text style={[styles.notesText, { color: themeColors.textMuted }]} numberOfLines={1}>
               {transaction.notes}
             </Text>
           ) : null}
 
-          {isMatch && (
-            <Text style={styles.rateDetailText}>
+          {(isMatch || isTransfer) && (
+            <Text style={[styles.rateDetailText, { color: themeColors.textSecondary }]}>
               {transaction.gutsPoints > 0 ? `+${transaction.gutsPoints}` : transaction.gutsPoints} Guts Pts @ {symbol}{transaction.ratePerPoint}/pt
             </Text>
           )}
@@ -97,9 +132,9 @@ export const TransactionCard = ({ transaction, onToggleStatus, onDelete }) => {
       <View style={styles.rightCol}>
         <Text style={[
           styles.amountText,
-          isPositive && { color: COLORS.receivable },
-          isNegative && { color: COLORS.payable },
-          transaction.amount === 0 && { color: COLORS.textMuted },
+          isPositive && { color: themeColors.receivable },
+          isNegative && { color: themeColors.payable },
+          transaction.amount === 0 && { color: themeColors.textMuted },
         ]}>
           {isPositive ? `+${symbol}` : isNegative ? `-${symbol}` : symbol}
           {Math.abs(transaction.amount).toFixed(2)}
@@ -109,14 +144,16 @@ export const TransactionCard = ({ transaction, onToggleStatus, onDelete }) => {
           style={styles.deleteBtn}
           onPress={handleDelete}
         >
-          <Ionicons name="trash-outline" size={14} color={COLORS.textMuted} />
+          <Ionicons name="trash-outline" size={14} color={themeColors.textMuted} />
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+
+const getStyles = (COLORS) => StyleSheet.create({
+
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,
@@ -174,6 +211,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.settledBg,
   },
   statusTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  settlementTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  partialTag: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  fullSettleTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  settlementTagText: {
     fontSize: 10,
     fontWeight: '700',
   },

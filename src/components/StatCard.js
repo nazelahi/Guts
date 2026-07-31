@@ -5,34 +5,36 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const StatCard = () => {
-  const { clubTotals, settings } = useGuts();
+  const { clubTotals, settings, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
   const symbol = settings.currencySymbol || '$';
+
 
   const isNetPositive = clubTotals.netCashPosition >= 0;
 
   return (
     <View style={styles.container}>
       {/* Main Net Position Banner */}
-      <View style={[styles.mainCard, isNetPositive ? styles.borderReceivable : styles.borderPayable]}>
+      <View style={[styles.mainCard, { backgroundColor: themeColors.surface }, isNetPositive ? styles.borderReceivable : styles.borderPayable]}>
         <View style={styles.netHeader}>
-          <Text style={styles.netLabel}>NET GUTS POSITION</Text>
-          <View style={[styles.statusBadge, { backgroundColor: isNetPositive ? COLORS.receivableBg : COLORS.payableBg }]}>
+          <Text style={[styles.netLabel, { color: themeColors.textSecondary }]}>NET GUTS POSITION</Text>
+          <View style={[styles.statusBadge, { backgroundColor: isNetPositive ? themeColors.receivableBg : themeColors.payableBg }]}>
             <Ionicons 
               name={isNetPositive ? 'arrow-up-circle' : 'arrow-down-circle'} 
               size={16} 
-              color={isNetPositive ? COLORS.receivable : COLORS.payable} 
+              color={isNetPositive ? themeColors.receivable : themeColors.payable} 
             />
-            <Text style={[styles.statusBadgeText, { color: isNetPositive ? COLORS.receivable : COLORS.payable }]}>
+            <Text style={[styles.statusBadgeText, { color: isNetPositive ? themeColors.receivable : themeColors.payable }]}>
               {isNetPositive ? 'Net Receivable' : 'Net Payable'}
             </Text>
           </View>
         </View>
 
-        <Text style={[styles.netAmount, { color: isNetPositive ? COLORS.receivable : COLORS.payable }]}>
+        <Text style={[styles.netAmount, { color: isNetPositive ? themeColors.receivable : themeColors.payable }]}>
           {symbol}{Math.abs(clubTotals.netCashPosition).toFixed(2)}
         </Text>
         
-        <Text style={styles.netSubtext}>
+        <Text style={[styles.netSubtext, { color: themeColors.textMuted }]}>
           Across {clubTotals.activePlayersCount} active opponents in ledger
         </Text>
       </View>
@@ -40,38 +42,38 @@ export const StatCard = () => {
       {/* Grid Breakdowns */}
       <View style={styles.gridContainer}>
         {/* Total You Get / Receivable */}
-        <View style={styles.subCard}>
+        <View style={[styles.subCard, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]}>
           <View style={styles.subCardHeader}>
-            <View style={[styles.miniIconBg, { backgroundColor: COLORS.receivableBg }]}>
-              <Feather name="arrow-down-left" size={16} color={COLORS.receivable} />
+            <View style={[styles.miniIconBg, { backgroundColor: themeColors.receivableBg }]}>
+              <Feather name="arrow-down-left" size={16} color={themeColors.receivable} />
             </View>
-            <Text style={styles.subCardTitle}>TO GET (RECEIVABLE)</Text>
+            <Text style={[styles.subCardTitle, { color: themeColors.textSecondary }]}>TO GET (RECEIVABLE)</Text>
           </View>
-          <Text style={[styles.subCardAmount, { color: COLORS.receivable }]}>
+          <Text style={[styles.subCardAmount, { color: themeColors.receivable }]}>
             {symbol}{clubTotals.totalReceivableCash.toFixed(2)}
           </Text>
           <View style={styles.pointsPill}>
-            <MaterialCommunityIcons name="trophy-outline" size={12} color={COLORS.receivable} />
-            <Text style={[styles.pointsPillText, { color: COLORS.receivable }]}>
+            <MaterialCommunityIcons name="trophy-outline" size={12} color={themeColors.receivable} />
+            <Text style={[styles.pointsPillText, { color: themeColors.receivable }]}>
               +{clubTotals.totalReceivablePoints} Guts Pts
             </Text>
           </View>
         </View>
 
         {/* Total You Owe / Payable */}
-        <View style={styles.subCard}>
+        <View style={[styles.subCard, { backgroundColor: themeColors.surface, borderColor: themeColors.surfaceBorder }]}>
           <View style={styles.subCardHeader}>
-            <View style={[styles.miniIconBg, { backgroundColor: COLORS.payableBg }]}>
-              <Feather name="arrow-up-right" size={16} color={COLORS.payable} />
+            <View style={[styles.miniIconBg, { backgroundColor: themeColors.payableBg }]}>
+              <Feather name="arrow-up-right" size={16} color={themeColors.payable} />
             </View>
-            <Text style={styles.subCardTitle}>TO GIVE (PAYABLE)</Text>
+            <Text style={[styles.subCardTitle, { color: themeColors.textSecondary }]}>TO GIVE (PAYABLE)</Text>
           </View>
-          <Text style={[styles.subCardAmount, { color: COLORS.payable }]}>
+          <Text style={[styles.subCardAmount, { color: themeColors.payable }]}>
             {symbol}{clubTotals.totalPayableCash.toFixed(2)}
           </Text>
           <View style={styles.pointsPill}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={12} color={COLORS.payable} />
-            <Text style={[styles.pointsPillText, { color: COLORS.payable }]}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={12} color={themeColors.payable} />
+            <Text style={[styles.pointsPillText, { color: themeColors.payable }]}>
               -{clubTotals.totalPayablePoints} Guts Pts
             </Text>
           </View>
@@ -81,7 +83,9 @@ export const StatCard = () => {
   );
 };
 
-const styles = StyleSheet.create({
+
+const getStyles = (COLORS) => StyleSheet.create({
+
   container: {
     marginHorizontal: 16,
     marginTop: 16,

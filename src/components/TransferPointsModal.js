@@ -5,8 +5,10 @@ import { COLORS } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 
 export const TransferPointsModal = ({ visible, onClose, initialFromPlayerId = null }) => {
-  const { players, settings, transferGutsPoints, showToast } = useGuts();
+  const { players, settings, transferGutsPoints, showToast, themeColors } = useGuts();
+  const styles = getStyles(themeColors);
   const symbol = settings.currencySymbol || '$';
+
 
   const [fromPlayerId, setFromPlayerId] = useState('');
   const [toPlayerId, setToPlayerId] = useState('');
@@ -77,138 +79,150 @@ export const TransferPointsModal = ({ visible, onClose, initialFromPlayerId = nu
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-            {/* FROM PLAYER */}
-            <Text style={styles.label}>TRANSFER FROM (SOURCE OPPONENT) *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-              {players.map(p => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.playerChip, fromPlayerId === p.id && styles.playerChipActiveFrom]}
-                  onPress={() => {
-                    setFromPlayerId(p.id);
-                    if (toPlayerId === p.id) {
-                      const nextTo = players.find(other => other.id !== p.id)?.id;
-                      if (nextTo) setToPlayerId(nextTo);
-                    }
-                  }}
-                >
-                  <View style={[styles.chipAvatar, { backgroundColor: p.avatarColor || COLORS.primary }]}>
-                    <Text style={styles.chipAvatarText}>{p.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                  <Text style={[styles.chipText, fromPlayerId === p.id && styles.chipTextActive]}>
-                    {p.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Transfer Direction Indicator */}
-            <View style={styles.transferArrowBox}>
-              <Feather name="arrow-down" size={20} color={COLORS.accentGold} />
+          {players.length < 2 ? (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="swap-horizontal" size={48} color={themeColors.surfaceBorder} />
+              <Text style={styles.emptyTitle}>Two Opponents Required</Text>
+              <Text style={styles.emptySub}>
+                You need to register at least two opponents to transfer points or balances between them.
+              </Text>
             </View>
+          ) : (
+            <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
+              {/* FROM PLAYER */}
+              <Text style={styles.label}>TRANSFER FROM (SOURCE OPPONENT) *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                {players.map(p => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.playerChip, fromPlayerId === p.id && styles.playerChipActiveFrom]}
+                    onPress={() => {
+                      setFromPlayerId(p.id);
+                      if (toPlayerId === p.id) {
+                        const nextTo = players.find(other => other.id !== p.id)?.id;
+                        if (nextTo) setToPlayerId(nextTo);
+                      }
+                    }}
+                  >
+                    <View style={[styles.chipAvatar, { backgroundColor: p.avatarColor || COLORS.primary }]}>
+                      <Text style={styles.chipAvatarText}>{p.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <Text style={[styles.chipText, fromPlayerId === p.id && styles.chipTextActive]}>
+                      {p.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
-            {/* TO PLAYER */}
-            <Text style={styles.label}>TRANSFER TO (DESTINATION OPPONENT) *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-              {players.filter(p => p.id !== fromPlayerId).map(p => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.playerChip, toPlayerId === p.id && styles.playerChipActiveTo]}
-                  onPress={() => setToPlayerId(p.id)}
+              {/* Transfer Direction Indicator */}
+              <View style={styles.transferArrowBox}>
+                <Feather name="arrow-down" size={20} color={COLORS.accentGold} />
+              </View>
+
+              {/* TO PLAYER */}
+              <Text style={styles.label}>TRANSFER TO (DESTINATION OPPONENT) *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                {players.filter(p => p.id !== fromPlayerId).map(p => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.playerChip, toPlayerId === p.id && styles.playerChipActiveTo]}
+                    onPress={() => setToPlayerId(p.id)}
+                  >
+                    <View style={[styles.chipAvatar, { backgroundColor: p.avatarColor || COLORS.primary }]}>
+                      <Text style={styles.chipAvatarText}>{p.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <Text style={[styles.chipText, toPlayerId === p.id && styles.chipTextActive]}>
+                      {p.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Guts Points Entry */}
+              <Text style={styles.label}>POINTS TO TRANSFER *</Text>
+              <View style={styles.ptsInputContainer}>
+                <TouchableOpacity 
+                  style={styles.adjustBtn}
+                  onPress={() => setGutsPoints(String(Math.max(1, numPts - 1)))}
                 >
-                  <View style={[styles.chipAvatar, { backgroundColor: p.avatarColor || COLORS.primary }]}>
-                    <Text style={styles.chipAvatarText}>{p.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                  <Text style={[styles.chipText, toPlayerId === p.id && styles.chipTextActive]}>
-                    {p.name}
-                  </Text>
+                  <Text style={styles.adjustBtnText}>-</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
 
-            {/* Guts Points Entry */}
-            <Text style={styles.label}>POINTS TO TRANSFER *</Text>
-            <View style={styles.ptsInputContainer}>
-              <TouchableOpacity 
-                style={styles.adjustBtn}
-                onPress={() => setGutsPoints(String(Math.max(1, numPts - 1)))}
-              >
-                <Text style={styles.adjustBtnText}>-</Text>
-              </TouchableOpacity>
+                <TextInput
+                  style={styles.ptsInput}
+                  keyboardType="numeric"
+                  value={gutsPoints}
+                  onChangeText={setGutsPoints}
+                />
 
+                <TouchableOpacity 
+                  style={styles.adjustBtn}
+                  onPress={() => setGutsPoints(String(numPts + 1))}
+                >
+                  <Text style={styles.adjustBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick Preset Pills */}
+              <View style={styles.presetRow}>
+                {[1, 3, 5, 10, 15, 20].map(pt => (
+                  <TouchableOpacity
+                    key={pt}
+                    style={[styles.presetPill, numPts === pt && styles.presetPillActive]}
+                    onPress={() => setGutsPoints(String(pt))}
+                  >
+                    <Text style={[styles.presetText, numPts === pt && styles.presetTextActive]}>
+                      {pt} Pts
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Rate per point */}
+              <Text style={styles.label}>RATE PER POINT ({symbol})</Text>
               <TextInput
-                style={styles.ptsInput}
-                keyboardType="numeric"
-                value={gutsPoints}
-                onChangeText={setGutsPoints}
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={ratePerPoint}
+                onChangeText={setRatePerPoint}
               />
 
-              <TouchableOpacity 
-                style={styles.adjustBtn}
-                onPress={() => setGutsPoints(String(numPts + 1))}
-              >
-                <Text style={styles.adjustBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Quick Preset Pills */}
-            <View style={styles.presetRow}>
-              {[1, 3, 5, 10, 15, 20].map(pt => (
-                <TouchableOpacity
-                  key={pt}
-                  style={[styles.presetPill, numPts === pt && styles.presetPillActive]}
-                  onPress={() => setGutsPoints(String(pt))}
-                >
-                  <Text style={[styles.presetText, numPts === pt && styles.presetTextActive]}>
-                    {pt} Pts
+              {/* Transfer Summary Preview Banner */}
+              {fromPlayer && toPlayer && (
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryTitle}>TRANSFER PREVIEW</Text>
+                  <Text style={styles.summaryMainText}>
+                    Moving <Text style={{ color: COLORS.accentGold, fontWeight: '800' }}>{numPts} Guts Pts ({symbol}{calculatedCash.toFixed(2)})</Text>
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  <Text style={styles.summarySubText}>
+                    From <Text style={{ color: COLORS.textPrimary, fontWeight: '700' }}>{fromPlayer.name}</Text> ➔ To <Text style={{ color: COLORS.textPrimary, fontWeight: '700' }}>{toPlayer.name}</Text>
+                  </Text>
+                </View>
+              )}
 
-            {/* Rate per point */}
-            <Text style={styles.label}>RATE PER POINT ({symbol})</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="decimal-pad"
-              value={ratePerPoint}
-              onChangeText={setRatePerPoint}
-            />
-
-            {/* Transfer Summary Preview Banner */}
-            {fromPlayer && toPlayer && (
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>TRANSFER PREVIEW</Text>
-                <Text style={styles.summaryMainText}>
-                  Moving <Text style={{ color: COLORS.accentGold, fontWeight: '800' }}>{numPts} Guts Pts ({symbol}{calculatedCash.toFixed(2)})</Text>
-                </Text>
-                <Text style={styles.summarySubText}>
-                  From <Text style={{ color: COLORS.textPrimary, fontWeight: '700' }}>{fromPlayer.name}</Text> ➔ To <Text style={{ color: COLORS.textPrimary, fontWeight: '700' }}>{toPlayer.name}</Text>
-                </Text>
-              </View>
-            )}
-
-            {/* Notes */}
-            <Text style={styles.label}>TRANSFER NOTE / REASON (OPTIONAL)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Side bet transfer, 3-way table settlement"
-              placeholderTextColor={COLORS.textMuted}
-              value={notes}
-              onChangeText={setNotes}
-            />
-          </ScrollView>
+              {/* Notes */}
+              <Text style={styles.label}>TRANSFER NOTE / REASON (OPTIONAL)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Side bet transfer, 3-way table settlement"
+                placeholderTextColor={COLORS.textMuted}
+                value={notes}
+                onChangeText={setNotes}
+              />
+            </ScrollView>
+          )}
 
           {/* Action Buttons */}
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleConfirmTransfer}>
-              <MaterialCommunityIcons name="swap-horizontal-bold" size={18} color="#000" />
-              <Text style={styles.saveBtnText}>Execute Transfer</Text>
-            </TouchableOpacity>
+            {players.length >= 2 && (
+              <TouchableOpacity style={styles.saveBtn} onPress={handleConfirmTransfer}>
+                <MaterialCommunityIcons name="swap-horizontal-bold" size={18} color="#000" />
+                <Text style={styles.saveBtnText}>Execute Transfer</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -216,7 +230,8 @@ export const TransferPointsModal = ({ visible, onClose, initialFromPlayerId = nu
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS) => StyleSheet.create({
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -441,5 +456,30 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 15,
     fontWeight: '800',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+    marginVertical: 20,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
