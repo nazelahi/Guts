@@ -14,6 +14,8 @@ export const AddTransactionModal = ({ visible, onClose, initialPlayerId = null }
   const [direction, setDirection] = useState('WON'); // 'WON' (you get) or 'LOST' (you owe)
   const [gutsPoints, setGutsPoints] = useState('5');
   const [ratePerPoint, setRatePerPoint] = useState(String(settings.defaultRatePerPoint || 1.0));
+  const [matchEntryMode, setMatchEntryMode] = useState('POINTS'); // 'POINTS' or 'CASH'
+  const [directMatchCash, setDirectMatchCash] = useState('');
   const [directAmount, setDirectAmount] = useState(''); // for cash settlement
   const [clubName, setClubName] = useState(settings.clubName || 'Imperial Snooker Club');
   const [notes, setNotes] = useState('');
@@ -44,26 +46,38 @@ export const AddTransactionModal = ({ visible, onClose, initialPlayerId = null }
     const opponentName = selectedPlayer ? selectedPlayer.name : 'opponent';
 
     if (type === 'MATCH') {
-      if (numPts <= 0) {
-        showToast('Please enter a valid Guts point amount.', 'error');
-        return;
-      }
+      let finalPts = 0;
+      let finalCash = 0;
 
-      // Signed points and cash amount
-      const signedPts = direction === 'WON' ? numPts : -numPts;
-      const signedCash = direction === 'WON' ? calculatedMatchCash : -calculatedMatchCash;
+      if (matchEntryMode === 'POINTS') {
+        if (numPts <= 0) {
+          showToast('Please enter a valid Guts point amount.', 'error');
+          return;
+        }
+        finalPts = direction === 'WON' ? numPts : -numPts;
+        finalCash = direction === 'WON' ? calculatedMatchCash : -calculatedMatchCash;
+      } else {
+        const cashVal = parseFloat(directMatchCash);
+        if (!cashVal || cashVal <= 0) {
+          showToast('Please enter a valid cash amount.', 'error');
+          return;
+        }
+        finalCash = direction === 'WON' ? cashVal : -cashVal;
+        const equivPts = numRate > 0 ? Math.round(cashVal / numRate) : 0;
+        finalPts = direction === 'WON' ? equivPts : -equivPts;
+      }
 
       await addTransaction({
         playerId: selectedPlayerId,
         type: 'MATCH',
-        gutsPoints: signedPts,
+        gutsPoints: finalPts,
         ratePerPoint: numRate,
-        amount: signedCash,
+        amount: finalCash,
         clubName,
         notes,
         status: 'UNSETTLED',
       });
-      showToast(`Logged Guts match vs ${opponentName} (${signedPts > 0 ? '+' : ''}${signedPts} Pts)`, 'success');
+      showToast(`Logged Guts match vs ${opponentName} (${finalCash > 0 ? '+' : ''}${symbol}${Math.abs(finalCash).toFixed(2)})`, 'success');
     } else {
       // Settlement type
       const cashVal = parseFloat(directAmount);
@@ -190,74 +204,161 @@ export const AddTransactionModal = ({ visible, onClose, initialPlayerId = null }
                   </TouchableOpacity>
                 </View>
 
-                {/* Guts Points Entry with Quick Quick Adjusters */}
-                <Text style={styles.label}>GUTS POINTS WON / LOST *</Text>
-                <View style={styles.ptsInputContainer}>
-                  <TouchableOpacity 
-                    style={styles.adjustBtn}
-                    onPress={() => setGutsPoints(String(Math.max(1, numPts - 1)))}
+                {/* Match Entry Mode Sub-Toggle (Points vs Cash) */}
+                <Text style={styles.label}>ENTRY MODE *</Text>
+                <View style={styles.modeToggleRow}>
+                  <TouchableOpacity
+                    style={[styles.modeToggleBtn, matchEntryMode === 'POINTS' && styles.modeToggleBtnActive]}
+                    onPress={() => setMatchEntryMode('POINTS')}
                   >
-                    <Text style={styles.adjustBtnText}>-</Text>
+                    <Ionicons name="trophy-outline" size={14} color={matchEntryMode === 'POINTS' ? COLORS.accentGold : COLORS.textMuted} />
+                    <Text style={[styles.modeToggleText, matchEntryMode === 'POINTS' && styles.modeToggleTextActive]}>
+                      By Guts Points
+                    </Text>
                   </TouchableOpacity>
 
-                  <TextInput
-                    style={styles.ptsInput}
-                    keyboardType="numeric"
-                    value={gutsPoints}
-                    onChangeText={setGutsPoints}
-                  />
-
-                  <TouchableOpacity 
-                    style={styles.adjustBtn}
-                    onPress={() => setGutsPoints(String(numPts + 1))}
+                  <TouchableOpacity
+                    style={[styles.modeToggleBtn, matchEntryMode === 'CASH' && styles.modeToggleBtnActive]}
+                    onPress={() => setMatchEntryMode('CASH')}
                   >
-                    <Text style={styles.adjustBtnText}>+</Text>
+                    <MaterialCommunityIcons name="cash" size={16} color={matchEntryMode === 'CASH' ? COLORS.accentGold : COLORS.textMuted} />
+                    <Text style={[styles.modeToggleText, matchEntryMode === 'CASH' && styles.modeToggleTextActive]}>
+                      By Direct Cash ({symbol})
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Quick Point Preset Pills */}
-                <View style={styles.presetRow}>
-                  {[1, 3, 5, 10, 15, 20].map(pt => (
-                    <TouchableOpacity
-                      key={pt}
-                      style={[styles.presetPill, numPts === pt && styles.presetPillActive]}
-                      onPress={() => setGutsPoints(String(pt))}
-                    >
-                      <Text style={[styles.presetText, numPts === pt && styles.presetTextActive]}>
-                        +{pt}
+                {matchEntryMode === 'POINTS' ? (
+                  <>
+                    {/* Guts Points Entry */}
+                    <Text style={styles.label}>GUTS POINTS WON / LOST *</Text>
+                    <View style={styles.ptsInputContainer}>
+                      <TouchableOpacity 
+                        style={styles.adjustBtn}
+                        onPress={() => setGutsPoints(String(Math.max(1, numPts - 1)))}
+                      >
+                        <Text style={styles.adjustBtnText}>-</Text>
+                      </TouchableOpacity>
+
+                      <TextInput
+                        style={styles.ptsInput}
+                        keyboardType="numeric"
+                        value={gutsPoints}
+                        onChangeText={setGutsPoints}
+                      />
+
+                      <TouchableOpacity 
+                        style={styles.adjustBtn}
+                        onPress={() => setGutsPoints(String(numPts + 1))}
+                      >
+                        <Text style={styles.adjustBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Quick Point Preset Pills */}
+                    <View style={styles.presetRow}>
+                      {[1, 3, 5, 10, 15, 20].map(pt => (
+                        <TouchableOpacity
+                          key={pt}
+                          style={[styles.presetPill, numPts === pt && styles.presetPillActive]}
+                          onPress={() => setGutsPoints(String(pt))}
+                        >
+                          <Text style={[styles.presetText, numPts === pt && styles.presetTextActive]}>
+                            +{pt} Pts
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Rate per point */}
+                    <Text style={styles.label}>RATE PER POINT ({symbol})</Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 1.00"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={ratePerPoint}
+                      onChangeText={setRatePerPoint}
+                    />
+
+                    {/* Calculated Cash Box */}
+                    <View style={[
+                      styles.calcBox,
+                      direction === 'WON' ? styles.calcBoxWon : styles.calcBoxLost
+                    ]}>
+                      <Text style={styles.calcBoxLabel}>TOTAL VALUE</Text>
+                      <Text style={[
+                        styles.calcBoxAmount,
+                        direction === 'WON' ? { color: COLORS.receivable } : { color: COLORS.payable }
+                      ]}>
+                        {direction === 'WON' ? `+${symbol}` : `-${symbol}`}
+                        {calculatedMatchCash.toFixed(2)}
                       </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      <Text style={styles.calcBoxSub}>
+                        {numPts} Guts Pts × {symbol}{numRate.toFixed(2)} rate
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    {/* Direct Cash Entry */}
+                    <Text style={styles.label}>CASH AMOUNT {direction === 'WON' ? 'WON' : 'LOST'} ({symbol}) *</Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 25.00"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={directMatchCash}
+                      onChangeText={setDirectMatchCash}
+                    />
 
-                {/* Rate per point */}
-                <Text style={styles.label}>RATE PER POINT ({symbol})</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="decimal-pad"
-                  placeholder="e.g. 1.00"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={ratePerPoint}
-                  onChangeText={setRatePerPoint}
-                />
+                    {/* Quick Cash Presets */}
+                    <View style={styles.presetRow}>
+                      {[5, 10, 20, 50, 100].map(val => (
+                        <TouchableOpacity
+                          key={val}
+                          style={[styles.presetPill, parseFloat(directMatchCash) === val && styles.presetPillActive]}
+                          onPress={() => setDirectMatchCash(String(val))}
+                        >
+                          <Text style={[styles.presetText, parseFloat(directMatchCash) === val && styles.presetTextActive]}>
+                            +{symbol}{val}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
 
-                {/* Calculated Cash Box */}
-                <View style={[
-                  styles.calcBox,
-                  direction === 'WON' ? styles.calcBoxWon : styles.calcBoxLost
-                ]}>
-                  <Text style={styles.calcBoxLabel}>TOTAL VALUE</Text>
-                  <Text style={[
-                    styles.calcBoxAmount,
-                    direction === 'WON' ? { color: COLORS.receivable } : { color: COLORS.payable }
-                  ]}>
-                    {direction === 'WON' ? `+${symbol}` : `-${symbol}`}
-                    {calculatedMatchCash.toFixed(2)}
-                  </Text>
-                  <Text style={styles.calcBoxSub}>
-                    {numPts} Guts Pts × {symbol}{numRate.toFixed(2)} rate
-                  </Text>
-                </View>
+                    {/* Optional Rate per point for equivalent calculation */}
+                    <Text style={styles.label}>RATE PER POINT ({symbol})</Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 1.00"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={ratePerPoint}
+                      onChangeText={setRatePerPoint}
+                    />
+
+                    {/* Equivalent Points Box */}
+                    <View style={[
+                      styles.calcBox,
+                      direction === 'WON' ? styles.calcBoxWon : styles.calcBoxLost
+                    ]}>
+                      <Text style={styles.calcBoxLabel}>MATCH CASH VALUE</Text>
+                      <Text style={[
+                        styles.calcBoxAmount,
+                        direction === 'WON' ? { color: COLORS.receivable } : { color: COLORS.payable }
+                      ]}>
+                        {direction === 'WON' ? `+${symbol}` : `-${symbol}`}
+                        {(parseFloat(directMatchCash) || 0).toFixed(2)}
+                      </Text>
+                      <Text style={styles.calcBoxSub}>
+                        {numRate > 0 
+                          ? `Equivalent to ~${Math.round((parseFloat(directMatchCash) || 0) / numRate)} Guts Pts (@ ${symbol}${numRate.toFixed(2)}/pt)` 
+                          : 'Flat cash match entry'}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -420,6 +521,36 @@ const styles = StyleSheet.create({
   },
   typeTabTextActive: {
     color: COLORS.textPrimary,
+  },
+  modeToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.surfaceLight,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+  },
+  modeToggleBtnActive: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.accentGold,
+  },
+  modeToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  modeToggleTextActive: {
+    color: COLORS.accentGold,
+    fontWeight: '700',
   },
   formScroll: {
     marginBottom: 14,
