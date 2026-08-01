@@ -6,6 +6,7 @@ import { useGuts } from '../context/GutsContext';
 
 export const PasscodeLockScreen = ({ 
   correctPasscode, 
+  useBiometrics = false,
   onSuccess, 
   title = "ENTER PASSCODE TO UNLOCK", 
   description = "Access your Snooker Guts ledger",
@@ -21,10 +22,10 @@ export const PasscodeLockScreen = ({
   const [biometricsSupported, setBiometricsSupported] = useState(false);
 
   useEffect(() => {
-    if (correctPasscode) {
+    if (useBiometrics) {
       checkBiometrics();
     }
-  }, [correctPasscode]);
+  }, [useBiometrics]);
 
   const checkBiometrics = async () => {
     try {
@@ -46,7 +47,7 @@ export const PasscodeLockScreen = ({
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Unlock Snooker Guts Ledger',
         fallbackLabel: 'Enter Passcode',
-        disableDeviceFallback: true,
+        disableDeviceFallback: correctPasscode ? true : false,
       });
       if (result.success) {
         if (onSuccess) onSuccess();
@@ -130,76 +131,89 @@ export const PasscodeLockScreen = ({
         <Text style={styles.descriptionText}>{description}</Text>
       </View>
 
-      {/* Code Indicators */}
-      <Animated.View style={[styles.dotsRow, { transform: [{ translateX: shakeAnim }] }]}>
-        {[0, 1, 2, 3].map(index => {
-          const isFilled = code.length > index;
-          return (
-            <View 
-              key={index} 
-              style={[
-                styles.dot, 
-                isFilled && styles.dotFilled,
-                error && styles.dotError
-              ]} 
-            />
-          );
-        })}
-      </Animated.View>
+      {correctPasscode ? (
+        <>
+          {/* Code Indicators */}
+          <Animated.View style={[styles.dotsRow, { transform: [{ translateX: shakeAnim }] }]}>
+            {[0, 1, 2, 3].map(index => {
+              const isFilled = code.length > index;
+              return (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.dot, 
+                    isFilled && styles.dotFilled,
+                    error && styles.dotError
+                  ]} 
+                />
+              );
+            })}
+          </Animated.View>
 
-      {/* Keyboard Grid */}
-      <View style={styles.keypadGrid}>
-        <View style={styles.keypadRow}>
-          {KEYPAD_BUTTONS.slice(0, 3).map(btn => (
-            <TouchableOpacity key={btn.value} style={styles.keyBtn} onPress={() => handleKeyPress(btn.value)}>
-              <Text style={styles.keyVal}>{btn.value}</Text>
-              {btn.letters ? <Text style={styles.keyLetters}>{btn.letters}</Text> : null}
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.keypadRow}>
-          {KEYPAD_BUTTONS.slice(3, 6).map(btn => (
-            <TouchableOpacity key={btn.value} style={styles.keyBtn} onPress={() => handleKeyPress(btn.value)}>
-              <Text style={styles.keyVal}>{btn.value}</Text>
-              {btn.letters ? <Text style={styles.keyLetters}>{btn.letters}</Text> : null}
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.keypadRow}>
-          {KEYPAD_BUTTONS.slice(6, 9).map(btn => (
-            <TouchableOpacity key={btn.value} style={styles.keyBtn} onPress={() => handleKeyPress(btn.value)}>
-              <Text style={styles.keyVal}>{btn.value}</Text>
-              {btn.letters ? <Text style={styles.keyLetters}>{btn.letters}</Text> : null}
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.keypadRow}>
-          {/* Left bottom key (Biometrics, Cancel, or Clear) */}
-          {correctPasscode && biometricsSupported ? (
-            <TouchableOpacity style={styles.sideKeyBtn} onPress={handleBiometricAuth} activeOpacity={0.7}>
-              <Ionicons name="finger-print" size={28} color={themeColors.accentGold} />
-            </TouchableOpacity>
-          ) : onCancel ? (
-            <TouchableOpacity style={styles.sideKeyBtn} onPress={onCancel} activeOpacity={0.7}>
-              <Text style={styles.cancelText}>{cancelText}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.sideKeyBtn} onPress={handleClear} activeOpacity={0.7}>
-              <Text style={styles.sideKeyText}>CLEAR</Text>
-            </TouchableOpacity>
-          )}
+          {/* Keyboard Grid */}
+          <View style={styles.keypadGrid}>
+            <View style={styles.keypadRow}>
+              {KEYPAD_BUTTONS.slice(0, 3).map(btn => (
+                <TouchableOpacity key={btn.value} style={styles.keyBtn} onPress={() => handleKeyPress(btn.value)}>
+                  <Text style={styles.keyVal}>{btn.value}</Text>
+                  {btn.letters ? <Text style={styles.keyLetters}>{btn.letters}</Text> : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.keypadRow}>
+              {KEYPAD_BUTTONS.slice(3, 6).map(btn => (
+                <TouchableOpacity key={btn.value} style={styles.keyBtn} onPress={() => handleKeyPress(btn.value)}>
+                  <Text style={styles.keyVal}>{btn.value}</Text>
+                  {btn.letters ? <Text style={styles.keyLetters}>{btn.letters}</Text> : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.keypadRow}>
+              {KEYPAD_BUTTONS.slice(6, 9).map(btn => (
+                <TouchableOpacity key={btn.value} style={styles.keyBtn} onPress={() => handleKeyPress(btn.value)}>
+                  <Text style={styles.keyVal}>{btn.value}</Text>
+                  {btn.letters ? <Text style={styles.keyLetters}>{btn.letters}</Text> : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.keypadRow}>
+              {/* Left bottom key (Biometrics, Cancel, or Clear) */}
+              {correctPasscode && biometricsSupported ? (
+                <TouchableOpacity style={styles.sideKeyBtn} onPress={handleBiometricAuth} activeOpacity={0.7}>
+                  <Ionicons name="finger-print" size={28} color={themeColors.accentGold} />
+                </TouchableOpacity>
+              ) : onCancel ? (
+                <TouchableOpacity style={styles.sideKeyBtn} onPress={onCancel} activeOpacity={0.7}>
+                  <Text style={styles.cancelText}>{cancelText}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.sideKeyBtn} onPress={handleClear} activeOpacity={0.7}>
+                  <Text style={styles.sideKeyText}>CLEAR</Text>
+                </TouchableOpacity>
+              )}
 
-          {/* Number 0 */}
-          <TouchableOpacity style={styles.keyBtn} onPress={() => handleKeyPress('0')}>
-            <Text style={styles.keyVal}>0</Text>
+              {/* Number 0 */}
+              <TouchableOpacity style={styles.keyBtn} onPress={() => handleKeyPress('0')}>
+                <Text style={styles.keyVal}>0</Text>
+              </TouchableOpacity>
+
+              {/* Backspace */}
+              <TouchableOpacity style={styles.sideKeyBtn} onPress={handleBackspace}>
+                <Ionicons name="backspace-outline" size={24} color={themeColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      ) : (
+        <View style={styles.biometricOnlyContainer}>
+          <TouchableOpacity style={styles.biometricOnlyBtn} onPress={handleBiometricAuth} activeOpacity={0.75}>
+            <View style={styles.biometricCircle}>
+              <Ionicons name="finger-print" size={72} color={themeColors.accentGold} />
+            </View>
+            <Text style={styles.biometricOnlyText}>Tap to Scan Biometrics</Text>
           </TouchableOpacity>
-
-          {/* Backspace */}
-          <TouchableOpacity style={styles.sideKeyBtn} onPress={handleBackspace}>
-            <Ionicons name="backspace-outline" size={24} color={themeColors.textPrimary} />
-          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       {/* Security Disclaimer */}
       <View style={styles.footerContainer}>
@@ -344,5 +358,39 @@ const getStyles = (COLORS) => StyleSheet.create({
     fontSize: 11,
     color: COLORS.textMuted,
     fontWeight: '600',
+  },
+  biometricOnlyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 40,
+  },
+  biometricOnlyBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  biometricCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.accentGold,
+    shadowColor: COLORS.accentGold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    ...Platform.select({
+      web: { cursor: 'pointer', boxShadow: '0px 4px 15px rgba(212, 175, 55, 0.2)' },
+    }),
+  },
+  biometricOnlyText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: 0.5,
   },
 });

@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS = {
   enableHaptics: true,
   theme: 'EMERALD_FELT',
   usePasscode: false,
+  useBiometrics: false,
   passcode: '',
 };
 
@@ -319,6 +320,7 @@ export const GutsProvider = ({ children }) => {
       let netCashAmount = 0;
       let unsettledGutsPoints = 0;
       let unsettledCashAmount = 0;
+      let settledCashAmount = 0;
 
       playerTxs.forEach(t => {
         const pts = Number(t.gutsPoints) || 0;
@@ -330,6 +332,10 @@ export const GutsProvider = ({ children }) => {
         if (t.status === 'UNSETTLED') {
           unsettledGutsPoints += pts;
           unsettledCashAmount += amt;
+        }
+
+        if (t.type === 'SETTLEMENT') {
+          settledCashAmount += Math.abs(amt);
         }
       });
 
@@ -343,6 +349,7 @@ export const GutsProvider = ({ children }) => {
         netCashAmount: Number(safeCash.toFixed(2)),
         unsettledGutsPoints: isNaN(unsettledGutsPoints) ? 0 : unsettledGutsPoints,
         unsettledCashAmount: Number(safeUnsettledCash.toFixed(2)),
+        settledCashAmount: Number(settledCashAmount.toFixed(2)),
         // Positive netCashAmount = Opponent owes you money; Negative = You owe opponent
         status: safeCash > 0 ? 'OWES_YOU' : safeCash < 0 ? 'YOU_OWE' : 'SETTLED',
       };

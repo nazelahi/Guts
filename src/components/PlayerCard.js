@@ -81,20 +81,27 @@ export const PlayerCard = ({ player, onPressDetail, onPressAddMatch, onPressSett
 
       {/* Footer Status & Action Buttons */}
       <View style={[styles.footerRow, { borderTopColor: themeColors.surfaceBorder }]}>
-        <View style={[
-          styles.statusBadge,
-          isOwesYou && { backgroundColor: themeColors.receivableBg },
-          isYouOwe && { backgroundColor: themeColors.payableBg },
-          isSettled && { backgroundColor: themeColors.settledBg },
-        ]}>
-          <Text style={[
-            styles.statusText,
-            isOwesYou && { color: themeColors.receivable },
-            isYouOwe && { color: themeColors.payable },
-            isSettled && { color: themeColors.settled },
+        <View style={styles.statusBadgeGroup}>
+          <View style={[
+            styles.statusBadge,
+            isOwesYou && { backgroundColor: themeColors.receivableBg },
+            isYouOwe && { backgroundColor: themeColors.payableBg },
+            isSettled && { backgroundColor: themeColors.settledBg },
           ]}>
-            {isOwesYou ? 'OWES YOU' : isYouOwe ? 'YOU OWE' : 'SETTLED'}
-          </Text>
+            <Text style={[
+              styles.statusText,
+              isOwesYou && { color: themeColors.receivable },
+              isYouOwe && { color: themeColors.payable },
+              isSettled && { color: themeColors.settled },
+            ]}>
+              {isOwesYou ? 'OWES YOU' : isYouOwe ? 'YOU OWE' : 'SETTLED'}
+            </Text>
+          </View>
+          {player.settledCashAmount > 0 && !isSettled && (
+            <Text style={[styles.partialSettleText, { color: themeColors.textMuted }]}>
+              (Paid: {symbol}{player.settledCashAmount.toFixed(2)})
+            </Text>
+          )}
         </View>
 
         <View style={styles.actionButtonsRow}>
@@ -219,6 +226,11 @@ const getStyles = (COLORS) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
+  statusBadgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -228,6 +240,11 @@ const getStyles = (COLORS) => StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
+  },
+  partialSettleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   actionButtonsRow: {
     flexDirection: 'row',

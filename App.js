@@ -55,10 +55,10 @@ function MainApp() {
 
   // Sync auth state when settings load
   useEffect(() => {
-    if (settings && !settings.usePasscode) {
+    if (settings && !settings.usePasscode && !settings.useBiometrics) {
       setIsAuthenticated(true);
     }
-  }, [settings?.usePasscode]);
+  }, [settings?.usePasscode, settings?.useBiometrics]);
 
   // Monitor AppState change to lock the app when minimized/resumed
   useEffect(() => {
@@ -67,7 +67,7 @@ function MainApp() {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        if (settings?.usePasscode) {
+        if (settings?.usePasscode || settings?.useBiometrics) {
           setIsAuthenticated(false);
         }
       }
@@ -77,19 +77,20 @@ function MainApp() {
     return () => {
       subscription.remove();
     };
-  }, [settings?.usePasscode]);
+  }, [settings?.usePasscode, settings?.useBiometrics]);
 
   if (isLoading || showSplash) {
     return <SplashScreen subtitle={settings?.clubName || 'Snooker Club Points & Ledger'} />;
   }
 
-  if (settings?.usePasscode && !isAuthenticated) {
+  if ((settings?.usePasscode || settings?.useBiometrics) && !isAuthenticated) {
     return (
       <PasscodeLockScreen
-        correctPasscode={settings.passcode}
+        correctPasscode={settings.usePasscode ? settings.passcode : null}
+        useBiometrics={settings.useBiometrics}
         onSuccess={() => setIsAuthenticated(true)}
-        title="ENTER PASSCODE TO UNLOCK"
-        description="Verify passcode to access Guts Ledger"
+        title={settings.usePasscode ? "ENTER PASSCODE TO UNLOCK" : "BIOMETRIC UNLOCK"}
+        description={settings.usePasscode ? "Verify passcode to access Guts Ledger" : "Verify biometrics to access Guts Ledger"}
       />
     );
   }

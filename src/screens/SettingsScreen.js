@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, Share, Modal } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { COLORS, THEMES } from '../theme/colors';
 import { useGuts } from '../context/GutsContext';
 import { PasscodeLockScreen } from '../components/PasscodeLockScreen';
@@ -76,14 +77,47 @@ export const SettingsScreen = () => {
       await saveSettings({
         ...settings,
         usePasscode: false,
+        useBiometrics: false,
         passcode: '',
       });
       setIsPasscodeModalVisible(false);
-      showToast('Passcode protection disabled', 'success');
+      showToast('Passcode & Biometrics disabled', 'success');
     } else if (passcodeFlowMode === 'VERIFY_CHANGE') {
       setPasscodeFlowMode('CREATE');
       setPasscodeModalTitle('ENTER NEW PASSCODE');
       setPasscodeModalDesc('Enter a new 4-digit passcode');
+    }
+  };
+
+  const handleToggleBiometricLock = async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
+        showToast('Biometric unlock is not supported or set up on this device.', 'error');
+        return;
+      }
+
+      const nextVal = !settings.useBiometrics;
+
+      if (nextVal && !settings.usePasscode) {
+        Alert.alert(
+          'Passcode Required',
+          'Please enable Passcode Protection first to set up a fallback unlock method.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      await saveSettings({
+        ...settings,
+        useBiometrics: nextVal,
+      });
+      showToast(nextVal ? 'Biometric unlock activated!' : 'Biometric unlock deactivated', 'success');
+    } catch (e) {
+      console.log('Error toggling biometric lock:', e);
+      showToast('Failed to toggle biometric lock', 'error');
     }
   };
 
@@ -381,6 +415,26 @@ export const SettingsScreen = () => {
               <Text style={styles.changePasscodeBtnText}>Change 4-Digit Passcode</Text>
             </TouchableOpacity>
           )}
+
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: themeColors.surfaceBorder, marginVertical: 14 }]} />
+
+          {/* Biometrics Row */}
+          <View style={styles.securityRow}>
+            <View style={styles.securityInfo}>
+              <Ionicons name="finger-print" size={20} color={settings.useBiometrics ? themeColors.accentGold : themeColors.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.securityTitleText, { color: themeColors.textPrimary }]}>Biometric Unlock</Text>
+                <Text style={[styles.securitySubtext, { color: themeColors.textMuted }]}>Use fingerprint or face recognition to unlock</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={[styles.toggleBtn, settings.useBiometrics ? styles.toggleBtnOn : styles.toggleBtnOff]}
+              onPress={handleToggleBiometricLock}
+            >
+              <View style={[styles.toggleCircle, settings.useBiometrics ? styles.toggleCircleOn : styles.toggleCircleOff]} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* App Stats */}
@@ -631,6 +685,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     color: COLORS.textSecondary,
     letterSpacing: 1,
     marginBottom: 10,
+    marginTop: 24,
   },
   sectionHeaderDanger: {
     fontSize: 11,
@@ -638,7 +693,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     color: COLORS.payable,
     letterSpacing: 1,
     marginBottom: 10,
-    marginTop: 20,
+    marginTop: 24,
   },
   statsCard: {
     backgroundColor: COLORS.surface,
@@ -646,6 +701,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
+    marginBottom: 16,
   },
   statRow: {
     flexDirection: 'row',
